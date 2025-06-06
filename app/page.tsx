@@ -13,7 +13,7 @@ export default function HomePage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <Image
-                src="/logo/tabsverse-logo-small.png"
+                src="/logo/tabsverse-logo-transparent-small.png"
                 alt="Tabsverse"
                 width={32}
                 height={32}
@@ -30,7 +30,7 @@ export default function HomePage() {
               </Link>
               <Link 
                 href="/auth/signup" 
-                className="bg-gradient-to-r from-brand-blue to-brand-pink text-white px-6 py-2.5 rounded-full font-medium transition-all transform hover:scale-105 hover:shadow-lg hover:shadow-brand-blue/25"
+                className="bg-gradient-to-br from-brand-pink via-brand-orange to-brand-orange text-white px-6 py-2.5 rounded-full font-medium transition-all transform hover:scale-105 hover:shadow-lg hover:shadow-brand-orange/25"
               >
                 Sign Up
               </Link>
@@ -60,11 +60,13 @@ export default function HomePage() {
           <div className="space-y-8 py-16">
             {/* Main headline - Fixed sizing and spacing */}
             <div className="space-y-2">
-              <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold bg-gradient-to-b from-gray-900 via-gray-800 to-gray-600 bg-clip-text text-transparent leading-tight">
-                From Tab <span className="bg-gradient-to-r from-brand-pink to-brand-orange bg-clip-text text-transparent">Chaos</span>
+              <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold leading-tight">
+                <span className="bg-gradient-to-b from-gray-900 via-gray-800 to-gray-600 bg-clip-text text-transparent">From Tab </span>
+                <span className="bg-gradient-to-r from-brand-pink via-brand-orange to-brand-orange bg-clip-text text-transparent">Chaos</span>
               </h1>
-              <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold bg-gradient-to-b from-gray-900 via-gray-800 to-gray-600 bg-clip-text text-transparent leading-tight">
-                to Tab <span className="bg-gradient-to-r from-brand-blue to-brand-navy bg-clip-text text-transparent">Zen</span>
+              <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold leading-tight">
+                <span className="bg-gradient-to-b from-gray-900 via-gray-800 to-gray-600 bg-clip-text text-transparent">to Tab </span>
+                <span className="bg-gradient-to-r from-brand-blue to-brand-navy bg-clip-text text-transparent">Zen</span>
               </h1>
             </div>
 
@@ -76,13 +78,12 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center pt-8">
               <Link 
                 href="/auth/signup" 
-                className="group relative bg-gradient-to-r from-brand-blue to-brand-pink text-white px-8 py-4 rounded-2xl font-semibold text-lg transition-all transform hover:scale-105 hover:shadow-2xl hover:shadow-brand-blue/25 border border-white/20"
+                className="group relative bg-gradient-to-br from-brand-pink via-brand-orange to-brand-orange text-white px-8 py-4 rounded-2xl font-semibold text-lg transition-all transform hover:scale-105 hover:shadow-2xl hover:shadow-brand-orange/25 border border-white/20"
               >
                 <span className="relative z-10 flex items-center gap-3">
                   Start Organizing
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-brand-blue/90 to-brand-pink/90 rounded-2xl blur-xl opacity-50 group-hover:opacity-100 transition-opacity"></div>
               </Link>
               <Link 
                 href="#features" 
@@ -98,7 +99,7 @@ export default function HomePage() {
             {/* Stats cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto pt-16">
               <div className="bg-white/70 backdrop-blur-xl border border-gray-200 rounded-2xl p-6 hover:bg-white/90 transition-all transform hover:scale-105 shadow-lg">
-                <div className="text-3xl font-bold bg-gradient-to-r from-brand-blue to-brand-pink bg-clip-text text-transparent mb-2">100→1</div>
+                <div className="text-3xl font-bold bg-gradient-to-br from-brand-pink to-brand-blue bg-clip-text text-transparent mb-2">100→1</div>
                 <div className="text-gray-600 text-sm">From 100 open tabs to 1 organized dashboard</div>
               </div>
               <div className="bg-white/70 backdrop-blur-xl border border-gray-200 rounded-2xl p-6 hover:bg-white/90 transition-all transform hover:scale-105 shadow-lg">
@@ -241,9 +242,15 @@ export default function HomePage() {
                   <SiGooglechrome className="w-10 h-10 text-white" />
                 </div>
                 <h3 className="text-2xl font-semibold text-gray-900 mb-4">Chrome Extension</h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 mb-6">
                   Enhanced tab management with instant saving and organization features.
                 </p>
+                {/* Coming Soon Badge - Centered at bottom */}
+                <div className="flex justify-center">
+                  <div className="bg-gradient-to-r from-brand-orange to-brand-pink text-white text-sm font-semibold px-4 py-2 rounded-full shadow-lg">
+                    Coming Soon
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -254,9 +261,15 @@ export default function HomePage() {
                   <SiSafari className="w-10 h-10 text-white" />
                 </div>
                 <h3 className="text-2xl font-semibold text-gray-900 mb-4">Safari Extension</h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 mb-6">
                   Native macOS and iOS integration with iCloud sync and Shortcuts support.
                 </p>
+                {/* Coming Soon Badge - Centered at bottom */}
+                <div className="flex justify-center">
+                  <div className="bg-gradient-to-r from-brand-orange to-brand-pink text-white text-sm font-semibold px-4 py-2 rounded-full shadow-lg">
+                    Coming Soon
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -267,9 +280,15 @@ export default function HomePage() {
                   <FaEdge className="w-10 h-10 text-white" />
                 </div>
                 <h3 className="text-2xl font-semibold text-gray-900 mb-4">Edge Extension</h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 mb-6">
                   Microsoft ecosystem integration with Teams and Office suite compatibility.
                 </p>
+                {/* Coming Soon Badge - Centered at bottom */}
+                <div className="flex justify-center">
+                  <div className="bg-gradient-to-r from-brand-orange to-brand-pink text-white text-sm font-semibold px-4 py-2 rounded-full shadow-lg">
+                    Coming Soon
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -278,7 +297,7 @@ export default function HomePage() {
 
       {/* Final CTA */}
       <section className="py-32 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-navy via-brand-blue to-brand-pink"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-pink to-brand-blue"></div>
         <div className="absolute inset-0">
           <div className="absolute top-0 left-0 w-full h-full bg-black/10"></div>
           <div className="absolute -top-32 -right-32 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse"></div>
@@ -311,7 +330,7 @@ export default function HomePage() {
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center mb-6">
                 <Image
-                  src="/logo/tabsverse-logo-small.png"
+                  src="/logo/tabsverse-logo-transparent-small.png"
                   alt="Tabsverse"
                   width={32}
                   height={32}
