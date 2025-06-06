@@ -4,7 +4,9 @@ const nextConfig = {
     domains: ['localhost', 'tabsverse.com'],
   },
   experimental: {
-    serverActions: true,
+    serverActions: {
+      allowedOrigins: ['localhost:3000', 'tabsverse.com']
+    },
   },
 }
 
