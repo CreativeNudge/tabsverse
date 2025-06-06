@@ -67,7 +67,7 @@ Build an all-in-one solution that allows users to effortlessly capture, organize
 5. **Community Curation**: A hobbyist organizing and sharing topic-specific resource collections with a community
 
 ## Repository
-- **GitHub**: https://github.com/karinadalca/tabsverse.git
+- **GitHub**: https://github.com/CreativeNudge/tabsverse
 - **Local**: /Users/karinadalca/Desktop/tabsverse
 
 ## Development Approach

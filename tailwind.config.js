@@ -17,14 +17,31 @@ module.exports = {
     },
     extend: {
       colors: {
-        // Tabsverse Brand Colors
+        // Tabsverse Brand Colors (From Logo)
         brand: {
-          'deep-blue': '#0B1426',      // Primary dark
-          'navy': '#1A2332',           // Secondary dark
-          'blue': '#2B7CE9',           // Primary blue
-          'light-blue': '#5A9DF7',     // Secondary blue
-          'cyan': '#00D4FF',           // Accent cyan
-          'purple': '#6366F1',         // Social purple
+          'pink': '#af0946',        // Deep Pink/Magenta - Primary accent
+          'navy': '#000d85',        // Deep Navy Blue - Primary brand
+          'blue': '#31a9d6',        // Bright Blue - Secondary accent
+          'orange': '#dc8c35',      // Orange/Gold - Warm accent
+          'pink-light': '#e682ad',  // Light Pink - Soft accent
+          // Darker variations for hover states
+          'pink-dark': '#8b073a',   // Darker pink for hover
+          'navy-dark': '#000a6b',   // Darker navy for hover
+          'blue-dark': '#2889b8',   // Darker blue for hover
+          'orange-dark': '#b8711d', // Darker orange for hover
+        },
+        // Essential Neutrals for UI
+        neutral: {
+          50: '#f8f9fa',   // Light gray backgrounds
+          100: '#e9ecef',  // Border gray
+          200: '#dee2e6',  // Subtle borders
+          300: '#ced4da',  // Form borders
+          400: '#adb5bd',  // Placeholder text
+          500: '#6c757d',  // Secondary text
+          600: '#495057',  // Body text
+          700: '#343a40',  // Dark text
+          800: '#212529',  // Headings
+          900: '#1a1a1a',  // Near black
         },
         // Component Colors
         border: "hsl(var(--border))",
@@ -60,6 +77,9 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+      },
+      fontFamily: {
+        'inter': ['var(--font-inter)', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
       },
       borderRadius: {
         lg: "var(--radius)",
