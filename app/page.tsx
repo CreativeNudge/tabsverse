@@ -292,7 +292,7 @@ export default function HomePage() {
             Digital Experience
           </h2>
           <p className="text-xl mb-12 text-white/90 max-w-2xl mx-auto leading-relaxed">
-            Join thousands of professionals who've revolutionized their content management workflow.
+            Join thousands of professionals who&apos;ve revolutionized their content management workflow.
           </p>
           <Link 
             href="/auth/signup" 
