@@ -63,7 +63,9 @@ export default function HomePage() {
               <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold leading-tight">
                 <span className="bg-gradient-to-b from-gray-900 via-gray-800 to-gray-600 bg-clip-text text-transparent">From Tab </span>
                 <span className="bg-gradient-to-r from-brand-pink via-brand-orange to-brand-orange bg-clip-text text-transparent">Chaos</span>
-                <span className="bg-gradient-to-b from-gray-900 via-gray-800 to-gray-600 bg-clip-text text-transparent"> to Tab </span>
+              </h1>
+              <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold leading-tight">
+                <span className="bg-gradient-to-b from-gray-900 via-gray-800 to-gray-600 bg-clip-text text-transparent">To Tab </span>
                 <span className="bg-gradient-to-r from-brand-blue to-brand-navy bg-clip-text text-transparent">Zen</span>
               </h1>
             </div>
