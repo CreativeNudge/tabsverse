@@ -18,13 +18,14 @@ export default function LoginPage() {
     <div className="min-h-screen flex">
       {/* Left Side - Brand/Visual */}
       <div className="flex-1 relative overflow-hidden bg-gradient-to-br from-brand-pink via-brand-orange to-brand-blue">
-        {/* Curved Background Elements */}
+        {/* Enhanced gradient background elements */}
         <div className="absolute inset-0">
           <div className="absolute top-0 left-0 w-full h-full">
-            {/* Curved gradient shapes similar to Figma */}
-            <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-2xl"></div>
+            {/* Floating gradient shapes */}
+            <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-2xl animate-pulse"></div>
             <div className="absolute top-1/2 -right-20 w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
-            <div className="absolute -bottom-20 left-1/3 w-72 h-72 bg-white/10 rounded-full blur-2xl"></div>
+            <div className="absolute -bottom-20 left-1/3 w-72 h-72 bg-white/10 rounded-full blur-2xl animate-pulse"></div>
+            <div className="absolute top-1/4 right-1/4 w-64 h-64 bg-white/8 rounded-full blur-xl"></div>
           </div>
         </div>
 
@@ -42,16 +43,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Large Logo in Center */}
-        <div className="relative z-10 flex items-center justify-center h-full">
-          <Image
-            src="/logo/logo-login-large-1440px.png"
-            alt="Tabsverse Logo"
-            width={400}
-            height={400}
-            className="w-80 h-auto opacity-90"
-          />
-        </div>
+
       </div>
 
       {/* Right Side - Login Form */}

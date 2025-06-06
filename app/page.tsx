@@ -30,7 +30,7 @@ export default function HomePage() {
               </Link>
               <Link 
                 href="/auth/signup" 
-                className="bg-gradient-to-br from-brand-pink via-brand-orange to-brand-orange text-white px-6 py-2.5 rounded-full font-medium transition-all transform hover:scale-105 hover:shadow-lg hover:shadow-brand-orange/25"
+                className="bg-gradient-to-br from-brand-blue to-brand-navy text-white px-6 py-2.5 rounded-full font-medium transition-all transform hover:scale-105 hover:shadow-lg hover:shadow-brand-blue/25"
               >
                 Sign Up
               </Link>
@@ -63,22 +63,25 @@ export default function HomePage() {
               <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold leading-tight">
                 <span className="bg-gradient-to-b from-gray-900 via-gray-800 to-gray-600 bg-clip-text text-transparent">From Tab </span>
                 <span className="bg-gradient-to-r from-brand-pink via-brand-orange to-brand-orange bg-clip-text text-transparent">Chaos</span>
-              </h1>
-              <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold leading-tight">
-                <span className="bg-gradient-to-b from-gray-900 via-gray-800 to-gray-600 bg-clip-text text-transparent">to Tab </span>
+                <span className="bg-gradient-to-b from-gray-900 via-gray-800 to-gray-600 bg-clip-text text-transparent"> to Tab </span>
                 <span className="bg-gradient-to-r from-brand-blue to-brand-navy bg-clip-text text-transparent">Zen</span>
               </h1>
             </div>
 
-            <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              Your digital world, <span className="text-gray-900 font-medium">curated by you</span>
-            </p>
+            <div className="space-y-4">
+              <p className="text-2xl md:text-3xl text-gray-700 max-w-3xl mx-auto leading-relaxed font-medium">
+                Breathe easy. Your digital world, organized.
+              </p>
+              <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+                Drowning in a sea of open tabs? Tabsverse is your life raft.
+              </p>
+            </div>
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center pt-8">
               <Link 
                 href="/auth/signup" 
-                className="group relative bg-gradient-to-br from-brand-pink via-brand-orange to-brand-orange text-white px-8 py-4 rounded-2xl font-semibold text-lg transition-all transform hover:scale-105 hover:shadow-2xl hover:shadow-brand-orange/25 border border-white/20"
+                className="group relative bg-gradient-to-br from-brand-blue to-brand-navy text-white px-8 py-4 rounded-2xl font-semibold text-lg transition-all transform hover:scale-105 hover:shadow-2xl hover:shadow-brand-blue/25 border border-white/20"
               >
                 <span className="relative z-10 flex items-center gap-3">
                   Start Organizing
