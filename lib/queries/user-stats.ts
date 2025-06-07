@@ -32,24 +32,36 @@ export async function getUserStats(userId: string): Promise<UserStats> {
     }
 
     // Get total views across all user's groups
-    const { data: viewsData, error: viewsError } = await supabase
-      .from('group_views')
-      .select('group_id')
-      .in('group_id', 
-        supabase
-          .from('groups')
-          .select('id')
-          .eq('user_id', userId)
-      )
+    // First get user's group IDs
+    const { data: userGroups, error: groupsError } = await supabase
+      .from('groups')
+      .select('id')
+      .eq('user_id', userId)
 
-    if (viewsError && !viewsError.message.includes('relation "public.group_views" does not exist')) {
-      console.error('Error fetching views count:', viewsError)
+    if (groupsError && !groupsError.message.includes('relation "public.groups" does not exist')) {
+      console.error('Error fetching user groups:', groupsError)
+    }
+
+    // Then get views for those groups
+    let totalViews = 0
+    if (userGroups && userGroups.length > 0) {
+      const groupIds = userGroups.map(group => group.id)
+      const { count: viewsCount, error: viewsError } = await supabase
+        .from('group_views')
+        .select('*', { count: 'exact', head: true })
+        .in('group_id', groupIds)
+
+      if (viewsError && !viewsError.message.includes('relation "public.group_views" does not exist')) {
+        console.error('Error fetching views count:', viewsError)
+      }
+      
+      totalViews = viewsCount || 0
     }
 
     return {
       totalTabs: tabsCount || 0,
       collections: collectionsCount || 0,
-      totalViews: viewsData?.length || 0
+      totalViews: totalViews
     }
   } catch (error) {
     // If tables don't exist yet, return mock data for development

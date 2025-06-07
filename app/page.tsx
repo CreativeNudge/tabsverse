@@ -184,9 +184,9 @@ export default function HomePage() {
               </h2>
               <Sparkles className="w-8 h-8 text-[#dc8c35] animate-pulse" />
             </div>
-            <p className="text-xl text-stone-600 max-w-3xl mx-auto leading-relaxed">
-              Every tab group becomes a visual story. See how your digital discoveries transform into magazine-quality presentations.
-            </p>
+              <p className="text-xl text-stone-600 max-w-3xl mx-auto leading-relaxed">
+                Every tab group becomes a visual story. See how your digital discoveries transform into magazine-quality presentations.
+              </p>
           </div>
 
           {/* Collection Grid - Matching Dashboard Style */}
@@ -202,10 +202,13 @@ export default function HomePage() {
                 >
                   {/* Cover Image */}
                   <div className="relative h-48 overflow-hidden">
-                    <img 
+                    <Image 
                       src={collection.coverImage} 
                       alt={collection.title}
+                      width={400}
+                      height={250}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      unoptimized
                     />
                     <div className={`absolute inset-0 bg-gradient-to-t ${collection.gradient} opacity-60`}></div>
                     
@@ -289,7 +292,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-2xl font-semibold text-stone-900 mb-4">Find Anything Instantly</h3>
               <p className="text-stone-600 leading-relaxed">
-                Search through all your saved tabs like you're browsing your Instagram feed. Find that perfect resource in seconds.
+                Search through all your saved tabs like you&apos;re browsing your Instagram feed. Find that perfect resource in seconds.
               </p>
             </div>
 
@@ -431,7 +434,7 @@ export default function HomePage() {
             <Sparkles className="w-12 h-12 text-white animate-pulse" />
           </div>
           <p className="text-xl mb-12 text-white/90 max-w-2xl mx-auto leading-relaxed">
-            Join thousands who've discovered digital serenity. Close your browser with confidence.
+            Join thousands who&apos;ve discovered digital serenity. Close your browser with confidence.
           </p>
           <Link 
             href="/auth/signup" 

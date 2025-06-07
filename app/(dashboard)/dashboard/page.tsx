@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import Logo from '@/components/Logo'
 import { useUserStats } from '@/lib/hooks/useUserStats'
+import Image from 'next/image'
+import type { PersonalityType, PersonalityStylesMap, CollectionData, SidebarState, ModalState, ViewState } from '@/types/dashboard'
 import { 
   Home,
   User, 
@@ -33,7 +35,7 @@ import {
 } from 'lucide-react'
 
 // Enhanced mock collections with personality and visual richness
-const mockEnhancedCollections = [
+const mockEnhancedCollections: CollectionData[] = [
   {
     id: 1,
     title: "Design System Goldmine",
@@ -132,9 +134,9 @@ const mockEnhancedCollections = [
   }
 ]
 
-// Helper function for personality-based styling
-const getPersonalityStyles = (personality: string, mood: string) => {
-  const styles = {
+// Helper function for personality-based styling with proper typing
+const getPersonalityStyles = (personality: PersonalityType): PersonalityStylesMap[PersonalityType] => {
+  const styles: PersonalityStylesMap = {
     creative: {
       titleFont: 'font-serif',
       cardStyle: 'hover:rotate-1',
@@ -173,18 +175,19 @@ const getPersonalityStyles = (personality: string, mood: string) => {
     }
   }
   
-  return styles[personality] || styles.creative
+  return styles[personality]
 }
 
 export default function DashboardPage() {
   const { user, profile, signOut } = useAuth()
   const { stats, recentGroups, loading: statsLoading, error: statsError, refetch } = useUserStats()
   const router = useRouter()
-  const [activeSection, setActiveSection] = useState('home')
-  const [expandedSidebar, setExpandedSidebar] = useState(null)
-  const [viewMode, setViewMode] = useState('magazine') // magazine, grid, masonry
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [createLoading, setCreateLoading] = useState(false)
+  // Component state with proper typing
+  const [activeSection, setActiveSection] = useState<string>('home')
+  const [expandedSidebar, setExpandedSidebar] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'magazine' | 'grid' | 'masonry'>('magazine')
+  const [showCreateModal, setShowCreateModal] = useState<boolean>(false)
+  const [createLoading, setCreateLoading] = useState<boolean>(false)
 
   const handleSignOut = async () => {
     const { error } = await signOut()
@@ -359,9 +362,9 @@ export default function DashboardPage() {
         {/* Create Curation Modal */}
         {showCreateModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-300">
-              {/* Modal Header */}
-              <div className="bg-gradient-to-r from-stone-50 to-amber-50/30 px-8 py-6 border-b border-stone-200">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-300">
+              {/* Modal Header - Fixed */}
+              <div className="bg-gradient-to-r from-stone-50 to-amber-50/30 px-8 py-6 border-b border-stone-200 flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-2xl font-serif font-bold text-stone-800">Create New Curation</h2>
@@ -376,8 +379,8 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Modal Content */}
-              <div className="p-8 space-y-6">
+              {/* Modal Content - Scrollable */}
+              <div className="flex-1 overflow-y-auto p-8 space-y-6">
                 {/* Title Input */}
                 <div>
                   <label className="block text-sm font-semibold text-stone-700 mb-2">Curation Title*</label>
@@ -437,6 +440,41 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
+                {/* Personality Selection */}
+                <div>
+                  <label className="block text-sm font-semibold text-stone-700 mb-3">Choose Your Collection's Personality</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button className="p-4 border border-stone-200 rounded-2xl hover:border-orange-300 hover:bg-orange-50/50 transition-all text-left group">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Palette className="w-5 h-5 text-purple-500" />
+                        <span className="font-semibold text-stone-800">🎨 Creative</span>
+                      </div>
+                      <p className="text-sm text-stone-600">Artistic, expressive, visually-driven</p>
+                    </button>
+                    <button className="p-4 border border-stone-200 rounded-2xl hover:border-orange-300 hover:bg-orange-50/50 transition-all text-left group">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Briefcase className="w-5 h-5 text-blue-500" />
+                        <span className="font-semibold text-stone-800">💼 Ambitious</span>
+                      </div>
+                      <p className="text-sm text-stone-600">Professional, goal-oriented, powerful</p>
+                    </button>
+                    <button className="p-4 border border-stone-200 rounded-2xl hover:border-orange-300 hover:bg-orange-50/50 transition-all text-left group">
+                      <div className="flex items-center gap-3 mb-2">
+                        <MapPin className="w-5 h-5 text-orange-500" />
+                        <span className="font-semibold text-stone-800">✈️ Wanderlust</span>
+                      </div>
+                      <p className="text-sm text-stone-600">Travel, exploration, adventure</p>
+                    </button>
+                    <button className="p-4 border border-stone-200 rounded-2xl hover:border-orange-300 hover:bg-orange-50/50 transition-all text-left group">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Code className="w-5 h-5 text-green-500" />
+                        <span className="font-semibold text-stone-800">💻 Technical</span>
+                      </div>
+                      <p className="text-sm text-stone-600">Precise, systematic, code-focused</p>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Pro Tip */}
                 <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-4 border border-orange-100">
                   <div className="flex items-start gap-3">
@@ -451,8 +489,8 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Modal Footer */}
-              <div className="bg-stone-50 px-8 py-6 border-t border-stone-200 flex items-center justify-between">
+              {/* Modal Footer - Fixed */}
+              <div className="bg-stone-50 px-8 py-6 border-t border-stone-200 flex items-center justify-between flex-shrink-0">
                 <button 
                   onClick={() => setShowCreateModal(false)}
                   className="px-6 py-3 text-stone-600 hover:text-stone-800 font-medium transition-colors"
@@ -552,7 +590,7 @@ export default function DashboardPage() {
               {/* Masonry-style layout */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {mockEnhancedCollections.map((collection, index) => {
-                  const personalityStyles = getPersonalityStyles(collection.personality, collection.mood)
+                  const personalityStyles = getPersonalityStyles(collection.personality)
                   const IconComponent = collection.icon
                   
                   return (
@@ -563,10 +601,13 @@ export default function DashboardPage() {
                     >
                       {/* Cover Image */}
                       <div className="relative h-48 overflow-hidden">
-                        <img 
+                        <Image 
                           src={collection.coverImage} 
                           alt={collection.title}
+                          width={400}
+                          height={250}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                          unoptimized
                         />
                         <div className={`absolute inset-0 bg-gradient-to-t ${collection.gradient} opacity-60`}></div>
                         
