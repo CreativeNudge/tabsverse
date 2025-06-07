@@ -229,42 +229,43 @@ export default function DashboardPage() {
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-orange-200/20 to-pink-200/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute -bottom-40 -left-40 w-[600px] h-[600px] bg-gradient-to-br from-amber-200/15 to-orange-200/15 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 w-[800px] h-[800px] bg-gradient-conic from-orange-100/10 via-amber-100/10 to-yellow-100/10 rounded-full blur-3xl animate-spin-slow"></div>
+        <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 w-[800px] h-[800px] bg-gradient-to-r from-orange-100/10 via-amber-100/10 to-yellow-100/10 rounded-full blur-3xl animate-spin-slow"></div>
       </div>
 
-      {/* Luxurious Minimal Sidebar */}
-      <div className="relative w-20 bg-white/80 backdrop-blur-xl flex flex-col items-center py-6 space-y-6 shadow-xl border-r border-orange-100/50">
+      {/* Clean Minimal Sidebar - Midjourney Style */}
+      <div className="relative w-20 bg-white/80 backdrop-blur-xl flex flex-col items-center shadow-xl border-r border-orange-100/50">
         {/* Subtle gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-orange-50/30 via-transparent to-amber-50/30"></div>
         
-        {/* Logo with breathing space */}
-        <div className="relative z-10 p-2">
-          <Logo variant="icon" size="lg" />
+        {/* Logo at top - same size as homepage */}
+        <div className="relative z-10 pt-6 pb-2">
+          <Image
+            src="/logo/tabsverse-logo-transparent-small.png"
+            alt="Tabsverse"
+            width={32}
+            height={32}
+            className="h-8 w-auto"
+            priority
+          />
         </div>
         
-        {/* Elegant divider */}
-        <div className="w-10 h-px bg-gradient-to-r from-transparent via-orange-200 to-transparent"></div>
-        
-        {/* Navigation Icons - Luxurious spacing */}
-        <div className="space-y-6 relative z-10">
+        {/* Navigation Icons - positioned right below header level */}
+        <div className="mt-6 space-y-2 relative z-10">
           {sidebarItems.map((item) => (
             <button
               key={item.id}
               onClick={() => handleSidebarClick(item.id)}
-              className={`group relative w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 ${
+              className={`group relative w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
                 activeSection === item.id
-                  ? 'bg-gradient-to-br from-[#af0946] to-[#dc8c35] text-white shadow-lg shadow-orange-200 scale-110'
-                  : 'text-stone-600 hover:text-orange-600 hover:bg-orange-50 hover:scale-105'
+                  ? 'bg-gradient-to-br from-[#af0946] to-[#dc8c35] text-white shadow-md'
+                  : 'text-stone-600 hover:text-orange-600 hover:bg-orange-50'
               }`}
             >
-              {/* Soft glow for active */}
-              {activeSection === item.id && (
-                <div className="absolute inset-0 bg-gradient-to-br from-[#af0946] to-[#dc8c35] rounded-2xl blur opacity-30 -z-10 animate-pulse"></div>
-              )}
-              <item.icon className="w-6 h-6 relative z-10" />
+              {/* Clean active state - no glow */}
+              <item.icon className="w-5 h-5 relative z-10" />
               
-              {/* Luxury tooltip */}
-              <div className="absolute left-20 px-4 py-2 bg-stone-800 text-white text-sm rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap pointer-events-none z-30 shadow-2xl">
+              {/* Minimal tooltip */}
+              <div className="absolute left-16 px-3 py-2 bg-stone-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap pointer-events-none z-30 shadow-lg">
                 {item.label}
                 <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-stone-800 rotate-45"></div>
               </div>
@@ -272,18 +273,31 @@ export default function DashboardPage() {
           ))}
         </div>
         
+        {/* Spacer to push bottom actions to bottom */}
         <div className="flex-1"></div>
         
-        {/* Bottom actions with luxury spacing */}
-        <div className="space-y-6 relative z-10">
-          <button className="group relative w-14 h-14 rounded-2xl flex items-center justify-center text-stone-600 hover:text-orange-600 hover:bg-orange-50 hover:scale-105 transition-all duration-500">
-            <Settings className="w-6 h-6" />
+        {/* Bottom actions - clean and minimal */}
+        <div className="pb-6 space-y-2 relative z-10">
+          <button className="group relative w-12 h-12 rounded-xl flex items-center justify-center text-stone-600 hover:text-orange-600 hover:bg-orange-50 transition-all duration-200">
+            <Settings className="w-5 h-5" />
+            
+            {/* Tooltip */}
+            <div className="absolute left-16 px-3 py-2 bg-stone-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap pointer-events-none z-30 shadow-lg">
+              Settings
+              <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-stone-800 rotate-45"></div>
+            </div>
           </button>
           <button 
             onClick={handleSignOut}
-            className="group relative w-14 h-14 rounded-2xl flex items-center justify-center text-stone-600 hover:text-red-500 hover:bg-red-50 hover:scale-105 transition-all duration-500"
+            className="group relative w-12 h-12 rounded-xl flex items-center justify-center text-stone-600 hover:text-red-500 hover:bg-red-50 transition-all duration-200"
           >
-            <LogOut className="w-6 h-6" />
+            <LogOut className="w-5 h-5" />
+            
+            {/* Tooltip */}
+            <div className="absolute left-16 px-3 py-2 bg-stone-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap pointer-events-none z-30 shadow-lg">
+              Sign Out
+              <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-stone-800 rotate-45"></div>
+            </div>
           </button>
         </div>
       </div>
@@ -362,7 +376,7 @@ export default function DashboardPage() {
         {/* Create Curation Modal */}
         {showCreateModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-300">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col animate-fade-in">
               {/* Modal Header - Fixed */}
               <div className="bg-gradient-to-r from-stone-50 to-amber-50/30 px-8 py-6 border-b border-stone-200 flex-shrink-0">
                 <div className="flex items-center justify-between">

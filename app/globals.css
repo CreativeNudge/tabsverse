@@ -80,10 +80,10 @@
 
 /* 3D Animation Effects */
 @keyframes spin-slow {
-  from {
+  0% {
     transform: rotate(0deg);
   }
-  to {
+  100% {
     transform: rotate(360deg);
   }
 }
@@ -107,5 +107,5 @@
 
 /* Gradient backgrounds */
 .bg-gradient-conic {
-  background: conic-gradient(from 0deg, var(--tw-gradient-stops));
+  background: conic-gradient(from 0deg at 50% 50%, var(--tw-gradient-stops));
 }
