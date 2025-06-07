@@ -1,42 +1,39 @@
-import { createServerClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+'use client'
 
-export default async function DashboardLayout({
+import { useAuth } from '@/lib/auth/context'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const supabase = createServerClient()
-  
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  const { user, loading } = useAuth()
+  const router = useRouter()
 
-  if (!session) {
-    redirect('/auth/login')
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading, router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-gradient-to-br from-brand-pink to-brand-orange rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-sm">T</span>
+          </div>
+          <span className="text-gray-600 font-inter">Loading...</span>
+        </div>
+      </div>
+    )
   }
 
-  return (
-    <div className="min-h-screen bg-neutral-50">
-      <header className="bg-white border-b border-neutral-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-neutral-900 font-inter">
-                Tabsverse Dashboard
-              </h1>
-            </div>
-            <div className="flex items-center">
-              <span className="text-sm text-neutral-600">
-                Welcome, {session.user.email}
-              </span>
-            </div>
-          </div>
-        </div>
-      </header>
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {children}
-      </main>
-    </div>
-  )
+  if (!user) {
+    return null
+  }
+
+  return <>{children}</>
 }

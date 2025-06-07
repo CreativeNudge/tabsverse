@@ -39,6 +39,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (error) {
+        // If no profile exists (table might not exist yet), that's okay
+        if (error.code === 'PGRST116' || error.message?.includes('relation "public.users" does not exist')) {
+          console.log('Users table not found or no profile exists - this is expected for now')
+          return null
+        }
         console.error('Error fetching profile:', error)
         return null
       }
@@ -47,6 +52,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Error fetching profile:', error)
       return null
+    }
+  }
+
+  // Create a fallback profile from auth user data
+  const createFallbackProfile = (authUser: User): UserProfile => {
+    return {
+      id: authUser.id,
+      email: authUser.email!,
+      full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || null,
+      avatar_url: authUser.user_metadata?.avatar_url || null,
+      username: null,
+      bio: null,
+      signup_ip: null,
+      signup_country: null,
+      last_login_ip: null,
+      created_at: authUser.created_at,
+      updated_at: new Date().toISOString(),
+      subscription_tier: 'free',
+      subscription_status: 'active',
+      settings: null,
+      stats: null
     }
   }
 
@@ -59,7 +85,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (session?.user) {
         const userProfile = await fetchProfile(session.user.id)
-        setProfile(userProfile)
+        if (userProfile) {
+          setProfile(userProfile)
+        } else {
+          // Use fallback profile from auth user data
+          setProfile(createFallbackProfile(session.user))
+        }
       }
       
       setLoading(false)
@@ -75,7 +106,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (session?.user) {
           const userProfile = await fetchProfile(session.user.id)
-          setProfile(userProfile)
+          if (userProfile) {
+            setProfile(userProfile)
+          } else {
+            // Use fallback profile from auth user data
+            setProfile(createFallbackProfile(session.user))
+          }
         } else {
           setProfile(null)
         }
@@ -106,37 +142,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     })
 
-    // If signup successful, create user profile
+    // If signup successful, try to create user profile (will fail gracefully if table doesn't exist)
     if (data.user && !error) {
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert({
-          id: data.user.id,
-          email: data.user.email!,
-          full_name: fullName,
-          subscription_tier: 'free',
-          subscription_status: 'active',
-          settings: {
-            privacy_level: 'private',
-            notification_preferences: {
-              email_notifications: true,
-              push_notifications: true,
+      try {
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert({
+            id: data.user.id,
+            email: data.user.email!,
+            full_name: fullName,
+            subscription_tier: 'free',
+            subscription_status: 'active',
+            settings: {
+              privacy_level: 'private',
+              notification_preferences: {
+                email_notifications: true,
+                push_notifications: true,
+              },
+              display_preferences: {
+                theme: 'light',
+                default_view: 'grid',
+              },
             },
-            display_preferences: {
-              theme: 'light',
-              default_view: 'grid',
+            stats: {
+              total_collections: 0,
+              total_resources: 0,
+              followers_count: 0,
+              following_count: 0,
             },
-          },
-          stats: {
-            total_collections: 0,
-            total_resources: 0,
-            followers_count: 0,
-            following_count: 0,
-          },
-        })
+          })
 
-      if (profileError) {
-        console.error('Error creating user profile:', profileError)
+        if (profileError) {
+          console.log('Could not create user profile (table may not exist yet):', profileError.message)
+        }
+      } catch (error) {
+        console.log('Could not create user profile (this is expected if database is not set up yet)')
       }
     }
 
