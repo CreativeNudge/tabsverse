@@ -3,8 +3,10 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
-import { useAuth } from '@/lib/auth/context'
+import { signUp } from '@/lib/hooks/useAuth'
 import { useRouter } from 'next/navigation'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import type { Database } from '@/types/database'
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('')
@@ -14,7 +16,6 @@ export default function SignUpPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  const { signUp, signInWithProvider } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,7 +43,13 @@ export default function SignUpPage() {
     setLoading(true)
     setError('')
     
-    const { error } = await signInWithProvider(provider)
+    const supabase = createClientComponentClient<Database>()
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?redirectTo=/dashboard`,
+      },
+    })
     
     if (error) {
       setError(error.message || 'An error occurred during social sign up')

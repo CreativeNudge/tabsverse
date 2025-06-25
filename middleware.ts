@@ -1,42 +1,31 @@
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import type { Database } from '@/types/database'
-
-// Define protected routes that require authentication
-const protectedPaths = ['/dashboard', '/collections', '/profile', '/settings']
-
-// Define auth paths that should redirect to dashboard if already authenticated
-const authPaths = ['/auth/login', '/auth/signup']
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
-  const supabase = createMiddlewareClient<Database>({ req, res })
+  const supabase = createMiddlewareClient({ req, res })
 
   // Refresh session if expired - required for Server Components
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  const { data: { session } } = await supabase.auth.getSession()
 
-  const { pathname } = req.nextUrl
+  // Protected routes that require authentication
+  const protectedPaths = ['/dashboard', '/curations', '/profile', '/settings']
+  const isProtectedPath = protectedPaths.some(path => req.nextUrl.pathname.startsWith(path))
 
-  // Check if the current path is protected
-  const isProtectedPath = protectedPaths.some((path) =>
-    pathname.startsWith(path)
-  )
-
-  // Check if the current path is an auth path
-  const isAuthPath = authPaths.some((path) => pathname.startsWith(path))
-
-  // If user is not authenticated and trying to access protected route
   if (isProtectedPath && !session) {
+    // Redirect to login if trying to access protected route without auth
     const redirectUrl = new URL('/auth/login', req.url)
-    redirectUrl.searchParams.set('redirectTo', pathname)
+    redirectUrl.searchParams.set('redirectTo', req.nextUrl.pathname)
     return NextResponse.redirect(redirectUrl)
   }
 
-  // If user is authenticated and trying to access auth pages, redirect to dashboard
+  // Redirect authenticated users away from auth pages
+  const authPaths = ['/auth/login', '/auth/signup', '/auth/forgot-password']
+  const isAuthPath = authPaths.some(path => req.nextUrl.pathname.startsWith(path))
+
   if (isAuthPath && session) {
+    // Redirect to dashboard if already authenticated
     return NextResponse.redirect(new URL('/dashboard', req.url))
   }
 
@@ -47,11 +36,12 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
+     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

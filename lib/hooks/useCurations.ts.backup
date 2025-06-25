@@ -1,0 +1,144 @@
+import { useState, useCallback, useMemo } from 'react'
+import { supabase } from '@/lib/supabase/client'
+import type { Group, InsertGroup } from '@/types/database'
+
+interface CreateCurationData {
+  title: string
+  description?: string
+  visibility: 'private' | 'public'
+  tags?: string
+  personality: 'creative' | 'ambitious' | 'wanderlust' | 'technical' | 'artistic' | 'mindful'
+  coverImageUrl?: string
+}
+
+interface CurationWithUser extends Group {
+  user: {
+    id: string
+    username: string | null
+    full_name: string | null
+    avatar_url: string | null
+  }
+}
+
+export function useCurations() {
+  const [curations, setCurations] = useState<CurationWithUser[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [initialized, setInitialized] = useState(false)
+
+  // Create new curation
+  const createCuration = useCallback(async (data: CreateCurationData) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/curations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create curation')
+      }
+
+      // Add the new curation to the list
+      if (result.curation) {
+        setCurations(prev => [result.curation, ...prev])
+      }
+
+      return { success: true, curation: result.curation, message: result.message }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError(errorMessage)
+      return { success: false, error: errorMessage }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // Fetch user's curations
+  const fetchCurations = useCallback(async (visibility?: 'private' | 'public') => {
+    if (initialized && !visibility) return { success: true, curations }
+    
+    setLoading(true)
+    setError(null)
+
+    try {
+      const url = new URL('/api/curations', window.location.origin)
+      if (visibility) {
+        url.searchParams.set('visibility', visibility)
+      }
+
+      const response = await fetch(url.toString())
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch curations')
+      }
+
+      setCurations(result.curations || [])
+      setInitialized(true)
+      return { success: true, curations: result.curations }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError(errorMessage)
+      return { success: false, error: errorMessage }
+    } finally {
+      setLoading(false)
+    }
+  }, [initialized, curations])
+
+  // Check if user can create more curations (free tier limit)
+  const checkCurationLimit = useCallback(async () => {
+    try {
+      // Use the current curations count if we have it to avoid extra API calls
+      if (initialized && curations.length >= 0) {
+        const currentCount = curations.length
+        const limit = 5
+        return {
+          canCreate: currentCount < limit,
+          count: currentCount,
+          limit,
+          remaining: limit - currentCount
+        }
+      }
+
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return { canCreate: false, count: 0, limit: 5 }
+
+      const { count, error } = await supabase
+        .from('groups')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+
+      if (error) throw error
+
+      const currentCount = count || 0
+      const limit = 5 // Free tier limit
+
+      return {
+        canCreate: currentCount < limit,
+        count: currentCount,
+        limit,
+        remaining: limit - currentCount
+      }
+    } catch (err) {
+      console.error('Error checking curation limit:', err)
+      return { canCreate: false, count: 0, limit: 5 }
+    }
+  }, [initialized, curations.length])
+
+  return {
+    curations,
+    loading,
+    error,
+    createCuration,
+    fetchCurations,
+    checkCurationLimit
+  }
+}

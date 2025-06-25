@@ -27,7 +27,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   
-  const supabase = createClient()
+  // CRITICAL: Create supabase client only once
+  const [supabase] = useState(() => createClient())
 
   // Fetch user profile
   const fetchProfile = async (userId: string) => {
@@ -77,6 +78,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    console.log('AuthProvider: Setting up auth listener')
+    
     // Get initial session
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -101,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('AuthProvider: Auth state changed', event)
         setSession(session)
         setUser(session?.user ?? null)
         
@@ -120,8 +124,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     )
 
-    return () => subscription.unsubscribe()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    // CRITICAL: Clean up subscription
+    return () => {
+      console.log('AuthProvider: Cleaning up auth listener')
+      subscription.unsubscribe()
+    }
+  }, []) // Empty dependency array is correct now since supabase is stable
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({

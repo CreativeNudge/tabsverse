@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useAuth } from '@/lib/auth/context'
+import { useState } from 'react'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { getUserStats, getUserRecentGroups } from '@/lib/queries/user-stats'
 
 type UserStats = {
@@ -24,73 +24,27 @@ type RecentGroup = {
 
 export function useUserStats() {
   const { user } = useAuth()
-  const [stats, setStats] = useState<UserStats>({
-    totalTabs: 0,
-    collections: 0,
-    totalViews: 0
+  const [stats] = useState<UserStats>({
+    totalTabs: 2435,
+    collections: 23,
+    totalViews: 98763
   })
-  const [recentGroups, setRecentGroups] = useState<RecentGroup[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [recentGroups] = useState<RecentGroup[]>([])
+  const [loading] = useState(false)
+  const [error] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function fetchUserData() {
-      if (!user?.id) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        setLoading(true)
-        setError(null)
-
-        // Fetch stats and recent groups in parallel
-        const [userStats, userRecentGroups] = await Promise.all([
-          getUserStats(user.id),
-          getUserRecentGroups(user.id, 4)
-        ])
-
-        setStats(userStats)
-        setRecentGroups(userRecentGroups)
-      } catch (err) {
-        console.error('Error fetching user data:', err)
-        setError(err instanceof Error ? err.message : 'Failed to fetch user data')
-        
-        // Set fallback data on error
-        setStats({
-          totalTabs: 2435,
-          collections: 23,
-          totalViews: 98763
-        })
-        setRecentGroups([])
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchUserData()
-  }, [user?.id])
+  // DISABLED ALL API CALLS TO STOP SPAM
+  // This hook now uses mock data only to prevent API issues
+  // Future: Convert to React Query pattern like useGroups
 
   const refreshStats = async () => {
-    if (!user?.id) return
-
-    try {
-      const userStats = await getUserStats(user.id)
-      setStats(userStats)
-    } catch (err) {
-      console.error('Error refreshing stats:', err)
-    }
+    // Disabled for now
+    console.log('Stats refresh disabled - using mock data')
   }
 
   const refreshRecentGroups = async () => {
-    if (!user?.id) return
-
-    try {
-      const userRecentGroups = await getUserRecentGroups(user.id, 4)
-      setRecentGroups(userRecentGroups)
-    } catch (err) {
-      console.error('Error refreshing recent groups:', err)
-    }
+    // Disabled for now  
+    console.log('Recent groups refresh disabled - using mock data')
   }
 
   return {

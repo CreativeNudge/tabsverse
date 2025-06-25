@@ -13,7 +13,7 @@ export interface PersonalityStyles {
 export type PersonalityStylesMap = Record<PersonalityType, PersonalityStyles>
 
 export interface CollectionData {
-  id: number
+  id: string
   title: string
   description: string
   personality: PersonalityType

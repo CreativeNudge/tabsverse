@@ -3,7 +3,8 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
-import { useAuth } from '@/lib/auth/context'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import type { Database } from '@/types/database'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -11,15 +12,16 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  const { resetPassword } = useAuth()
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
     setSuccess('')
 
-    const { error } = await resetPassword(email)
+    const supabase = createClientComponentClient<Database>()
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    })
     
     if (error) {
       setError(error.message || 'An error occurred while sending reset email')

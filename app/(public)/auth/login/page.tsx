@@ -3,8 +3,10 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState, Suspense } from 'react'
-import { useAuth } from '@/lib/auth/context'
+import { signIn } from '@/lib/hooks/useAuth'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import type { Database } from '@/types/database'
 
 function LoginForm() {
   const [email, setEmail] = useState('')
@@ -12,7 +14,6 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   
-  const { signIn, signInWithProvider } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirectTo') || '/dashboard'
@@ -36,7 +37,13 @@ function LoginForm() {
     setLoading(true)
     setError('')
     
-    const { error } = await signInWithProvider(provider)
+    const supabase = createClientComponentClient<Database>()
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
+      },
+    })
     
     if (error) {
       setError(error.message || 'An error occurred during social login')
