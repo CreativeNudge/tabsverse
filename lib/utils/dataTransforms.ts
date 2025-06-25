@@ -55,7 +55,7 @@ export const transformGroupToCollection = (group: GroupWithUser): CollectionData
   const personality = (group.settings as any)?.personality as PersonalityType || 'creative'
   
   return {
-    id: group.id.length > 10 ? group.id.slice(0, 8) : group.id, // Ensure reasonable ID length
+    id: group.id, // Use full UUID for proper routing
     title: group.title,
     description: group.description || 'No description provided',
     personality,

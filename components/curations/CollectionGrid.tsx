@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import { Heart, Eye, ExternalLink, Clock, LucideIcon } from 'lucide-react'
 import type { PersonalityType } from '@/types/dashboard'
 
@@ -93,9 +94,10 @@ export default function CollectionGrid({ collections }: CollectionGridProps) {
         const IconComponent = collection.icon
         
         return (
-          <div
+          <Link
             key={collection.id}
-            className={`group relative bg-white/80 backdrop-blur-xl rounded-3xl overflow-hidden border border-stone-200/50 hover:border-orange-200/50 transition-all duration-700 hover:shadow-2xl hover:shadow-orange-100/20 ${personalityStyles.cardStyle}`}
+            href={`/curations/${collection.id}`}
+            className={`group relative bg-white/80 backdrop-blur-xl rounded-3xl overflow-hidden border border-stone-200/50 hover:border-orange-200/50 transition-all duration-700 hover:shadow-2xl hover:shadow-orange-100/20 block ${personalityStyles.cardStyle}`}
             style={{ animationDelay: `${index * 100}ms` }}
           >
             {/* Cover Image */}
@@ -169,7 +171,7 @@ export default function CollectionGrid({ collections }: CollectionGridProps) {
                 </span>
               </div>
             </div>
-          </div>
+          </Link>
         )
       })}
     </div>

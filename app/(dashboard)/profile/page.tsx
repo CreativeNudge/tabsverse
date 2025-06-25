@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { User, Eye, Heart, Share2, Edit3, Calendar } from 'lucide-react'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useGroups } from '@/lib/hooks/useGroups'
@@ -29,9 +30,11 @@ export default function ProfilePage() {
           <div className="relative">
             <div className="w-24 h-24 bg-gradient-to-br from-orange-400 to-red-500 rounded-3xl flex items-center justify-center shadow-lg">
               {user?.user_metadata?.avatar_url ? (
-                <img 
+                <Image 
                   src={user.user_metadata.avatar_url} 
                   alt="Profile" 
+                  width={96}
+                  height={96}
                   className="w-full h-full rounded-3xl object-cover"
                 />
               ) : (

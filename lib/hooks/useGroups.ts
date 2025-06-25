@@ -5,6 +5,7 @@ import type { Database } from '@/types/database'
 
 // Types
 type Group = Database['public']['Tables']['groups']['Row']
+type Tab = Database['public']['Tables']['tabs']['Row']
 
 interface GroupWithUser extends Group {
   user: {
@@ -13,6 +14,11 @@ interface GroupWithUser extends Group {
     full_name: string | null
     avatar_url: string | null
   }
+}
+
+interface GroupWithTabs extends GroupWithUser {
+  tabs: Tab[]
+  isLiked?: boolean
 }
 
 interface CreateGroupData {
@@ -35,6 +41,15 @@ const groupsApi = {
     return result.curations || []
   },
 
+  getById: async (id: string): Promise<GroupWithTabs> => {
+    const response = await fetch(`/api/curations/${id}`)
+    if (!response.ok) {
+      throw new Error('Failed to fetch curation')
+    }
+    const result = await response.json()
+    return result.curation
+  },
+
   create: async (data: CreateGroupData): Promise<GroupWithUser> => {
     const response = await fetch('/api/curations', {
       method: 'POST',
@@ -47,6 +62,50 @@ const groupsApi = {
     }
     const result = await response.json()
     return result.curation
+  },
+
+  update: async (id: string, data: Partial<CreateGroupData>): Promise<GroupWithUser> => {
+    const response = await fetch(`/api/curations/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const result = await response.json()
+      throw new Error(result.error || 'Failed to update curation')
+    }
+    const result = await response.json()
+    return result.curation
+  },
+
+  delete: async (id: string): Promise<void> => {
+    const response = await fetch(`/api/curations/${id}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) {
+      const result = await response.json()
+      throw new Error(result.error || 'Failed to delete curation')
+    }
+  },
+
+  like: async (id: string): Promise<void> => {
+    const response = await fetch(`/api/curations/${id}/like`, {
+      method: 'POST',
+    })
+    if (!response.ok) {
+      const result = await response.json()
+      throw new Error(result.error || 'Failed to like curation')
+    }
+  },
+
+  unlike: async (id: string): Promise<void> => {
+    const response = await fetch(`/api/curations/${id}/like`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) {
+      const result = await response.json()
+      throw new Error(result.error || 'Failed to unlike curation')
+    }
   },
 
   checkLimit: async () => {
@@ -83,6 +142,103 @@ export function useCreateGroup() {
       
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: ['group-limit'] })
+    },
+  })
+}
+
+export function useGroup(id: string) {
+  const { user } = useAuth()
+  
+  return useQuery({
+    queryKey: queryKeys.groups.detail(id),
+    queryFn: () => groupsApi.getById(id),
+    enabled: !!user && !!id,
+  })
+}
+
+export function useUpdateGroup() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateGroupData> }) => 
+      groupsApi.update(id, data),
+    onSuccess: (updatedGroup, variables) => {
+      // Update cache for individual group
+      queryClient.setQueryData(
+        queryKeys.groups.detail(variables.id),
+        (old: GroupWithTabs | undefined) => {
+          if (!old) return updatedGroup as GroupWithTabs
+          return { ...old, ...updatedGroup }
+        }
+      )
+      
+      // Update cache for groups list
+      queryClient.setQueryData<GroupWithUser[]>(
+        queryKeys.groups.all,
+        (old = []) => old.map(group => 
+          group.id === variables.id ? { ...group, ...updatedGroup } : group
+        )
+      )
+    },
+  })
+}
+
+export function useDeleteGroup() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: groupsApi.delete,
+    onSuccess: (_, deletedId) => {
+      // Remove from cache
+      queryClient.removeQueries({ queryKey: queryKeys.groups.detail(deletedId) })
+      queryClient.setQueryData<GroupWithUser[]>(
+        queryKeys.groups.all,
+        (old = []) => old.filter(group => group.id !== deletedId)
+      )
+    },
+  })
+}
+
+export function useLikeGroup() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: groupsApi.like,
+    onSuccess: (_, groupId) => {
+      // Update like status and count
+      queryClient.setQueryData(
+        queryKeys.groups.detail(groupId),
+        (old: GroupWithTabs | undefined) => {
+          if (!old) return old
+          return {
+            ...old,
+            isLiked: true,
+            like_count: old.like_count + 1
+          }
+        }
+      )
+    },
+  })
+}
+
+export function useUnlikeGroup() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: groupsApi.unlike,
+    onSuccess: (_, groupId) => {
+      // Update like status and count
+      queryClient.setQueryData(
+        queryKeys.groups.detail(groupId),
+        (old: GroupWithTabs | undefined) => {
+          if (!old) return old
+          return {
+            ...old,
+            isLiked: false,
+            like_count: Math.max(0, old.like_count - 1)
+          }
+        }
+      )
     },
   })
 }
