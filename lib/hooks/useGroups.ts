@@ -26,7 +26,8 @@ interface CreateGroupData {
   description?: string
   visibility: 'private' | 'public'
   tags?: string
-  personality: 'creative' | 'ambitious' | 'wanderlust' | 'technical' | 'artistic' | 'mindful'
+  primary_category: 'technology' | 'design' | 'business' | 'education' | 'lifestyle' | 'travel' | 'food' | 'entertainment' | 'news' | 'shopping' | 'home' | 'finance'
+  secondary_category?: 'technology' | 'design' | 'business' | 'education' | 'lifestyle' | 'travel' | 'food' | 'entertainment' | 'news' | 'shopping' | 'home' | 'finance' | null
   coverImageUrl?: string
 }
 
@@ -47,7 +48,7 @@ const groupsApi = {
       throw new Error('Failed to fetch curation')
     }
     const result = await response.json()
-    return result.curation
+    return result // API returns data directly, not wrapped in .curation
   },
 
   create: async (data: CreateGroupData): Promise<GroupWithUser> => {
@@ -61,7 +62,7 @@ const groupsApi = {
       throw new Error(result.error || 'Failed to create group')
     }
     const result = await response.json()
-    return result.curation
+    return result.curation // This one might be correct - check your create API
   },
 
   update: async (id: string, data: Partial<CreateGroupData>): Promise<GroupWithUser> => {
@@ -75,7 +76,7 @@ const groupsApi = {
       throw new Error(result.error || 'Failed to update curation')
     }
     const result = await response.json()
-    return result.curation
+    return result.curation // This might also need checking
   },
 
   delete: async (id: string): Promise<void> => {

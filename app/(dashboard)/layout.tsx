@@ -105,7 +105,8 @@ export default function DashboardLayout({
         description: formData.description,
         visibility: formData.visibility,
         tags: formData.tags,
-        personality: formData.personality
+        primary_category: formData.primary_category,
+        secondary_category: formData.secondary_category || null
       })
       
       setShowCreateModal(false)

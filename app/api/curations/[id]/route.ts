@@ -1,150 +1,80 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerSupabaseClient } from '@/lib/supabase/server'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
+import type { Database } from '@/types/database'
 
+// Auth helper compatible with Next.js 15
+async function getAuthenticatedUser() {
+  const cookieStore = await cookies()
+  const supabase = createRouteHandlerClient<Database>({ 
+    cookies: () => cookieStore 
+  } as any)
+  
+  const { data: { user }, error } = await supabase.auth.getUser()
+  return { user, error, supabase }
+}
+
+// GET - Fetch curation details with tabs
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createRouteHandlerSupabaseClient()
-    const { id } = await params
-
-    // Get the curation with user info and all its tabs
-    const { data: curation, error: curationError } = await supabase
-      .from('groups')
-      .select(`
-        *,
-        user:users (
-          id,
-          username,
-          full_name,
-          avatar_url
-        ),
-        tabs (
-          *
-        )
-      `)
-      .eq('id', id)
-      .single()
-
-    if (curationError) {
-      console.error('Error fetching curation:', curationError)
-      return NextResponse.json({ error: 'Curation not found' }, { status: 404 })
-    }
-
-    if (!curation) {
-      return NextResponse.json({ error: 'Curation not found' }, { status: 404 })
-    }
-
-    // Sort tabs by position
-    if (curation.tabs) {
-      curation.tabs.sort((a: any, b: any) => a.position - b.position)
-    }
-
-    // Check if current user has liked this curation
-    const { data: { user } } = await supabase.auth.getUser()
-    let isLiked = false
-    
-    if (user) {
-      const { data: likeData } = await supabase
-        .from('group_likes')
-        .select('id')
-        .eq('group_id', id)
-        .eq('user_id', user.id)
-        .single()
-      
-      isLiked = !!likeData
-    }
-
-    // Track view (if not the owner)
-    if (user && user.id !== curation.user_id) {
-      // Insert view record (will auto-increment view_count via trigger)
-      await supabase
-        .from('group_views')
-        .insert({
-          group_id: id,
-          viewer_id: user.id,
-          user_agent: request.headers.get('user-agent'),
-          referrer: request.headers.get('referer')
-        })
-    }
-
-    return NextResponse.json({
-      curation: {
-        ...curation,
-        isLiked
-      }
-    })
-
-  } catch (error) {
-    console.error('API error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-}
-
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const supabase = createRouteHandlerSupabaseClient()
-    const { id } = await params
-    const body = await request.json()
-
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { user, error: authError, supabase } = await getAuthenticatedUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify user owns this curation
-    const { data: curation, error: fetchError } = await supabase
+    const { id: groupId } = await params
+
+    // Get curation with user info
+    const { data: curation, error: curationError } = await supabase
       .from('groups')
-      .select('user_id')
-      .eq('id', id)
-      .single()
-
-    if (fetchError || !curation) {
-      return NextResponse.json({ error: 'Curation not found' }, { status: 404 })
-    }
-
-    if (curation.user_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    // Update curation
-    const { data: updatedCuration, error: updateError } = await supabase
-      .from('groups')
-      .update({
-        title: body.title,
-        description: body.description,
-        visibility: body.visibility,
-        tags: body.tags,
-        cover_image_url: body.cover_image_url,
-        settings: body.settings,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
       .select(`
         *,
-        user:users (
+        users!groups_user_id_fkey (
           id,
           username,
           full_name,
           avatar_url
         )
       `)
+      .eq('id', groupId)
       .single()
 
-    if (updateError) {
-      console.error('Error updating curation:', updateError)
-      return NextResponse.json({ error: 'Failed to update curation' }, { status: 500 })
+    if (curationError || !curation) {
+      return NextResponse.json({ error: 'Curation not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ curation: updatedCuration })
+    // Check if user can view this curation
+    const canView = curation.visibility === 'public' || curation.user_id === user.id
+    if (!canView) {
+      return NextResponse.json({ error: 'Curation not found' }, { status: 404 })
+    }
+
+    // Get tabs for this curation
+    const { data: tabs, error: tabsError } = await supabase
+      .from('tabs')
+      .select('*')
+      .eq('group_id', groupId)
+      .order('position', { ascending: true })
+
+    if (tabsError) {
+      console.error('Error fetching tabs:', tabsError)
+      return NextResponse.json({ error: 'Failed to fetch tabs' }, { status: 500 })
+    }
+
+    // Format the response
+    const response = {
+      ...curation,
+      user: curation.users,
+      tabs: tabs || []
+    }
+
+    // Remove the users field by destructuring (TypeScript-safe)
+    const { users, ...finalResponse } = response
+
+    return NextResponse.json(finalResponse)
 
   } catch (error) {
     console.error('API error:', error)
@@ -155,25 +85,24 @@ export async function PUT(
   }
 }
 
+// DELETE - Delete curation and all its tabs
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createRouteHandlerSupabaseClient()
-    const { id } = await params
-
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { user, error: authError, supabase } = await getAuthenticatedUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { id: groupId } = await params
+
     // Verify user owns this curation
     const { data: curation, error: fetchError } = await supabase
       .from('groups')
-      .select('user_id')
-      .eq('id', id)
+      .select('user_id, title, tab_count')
+      .eq('id', groupId)
       .single()
 
     if (fetchError || !curation) {
@@ -184,18 +113,21 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Delete curation (cascade will handle tabs, likes, comments, views)
+    // Delete the curation (this will cascade delete all tabs due to foreign key constraints)
     const { error: deleteError } = await supabase
       .from('groups')
       .delete()
-      .eq('id', id)
+      .eq('id', groupId)
 
     if (deleteError) {
       console.error('Error deleting curation:', deleteError)
       return NextResponse.json({ error: 'Failed to delete curation' }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ 
+      success: true,
+      message: `Curation "${curation.title}" and ${curation.tab_count} tabs deleted successfully`
+    })
 
   } catch (error) {
     console.error('API error:', error)

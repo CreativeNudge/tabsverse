@@ -25,7 +25,8 @@ import {
   Trash2,
   Edit,
   ArrowLeft,
-  User
+  User,
+  Folder
 } from 'lucide-react'
 import { useGroup, useLikeGroup, useUnlikeGroup, useDeleteGroup } from '@/lib/hooks/useGroups'
 import { useCreateTab, useTrackTabClick } from '@/lib/hooks/useTabs'
@@ -42,6 +43,14 @@ const getResourceIcon = (type: string) => {
     case 'document': return FileText
     default: return Globe
   }
+}
+
+// Format category names for display
+const formatCategoryName = (category: string) => {
+  return category
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
 }
 
 // Personality-based styling
@@ -403,23 +412,74 @@ export default function CurationDetailPage() {
                   </p>
                 )}
 
-                {/* Tags */}
-                {curation.tags && curation.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-6">
-                    {curation.tags.map((tag, index) => (
-                      <span 
-                        key={index}
-                        className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          curation.cover_image_url 
-                            ? 'bg-white/20 text-white backdrop-blur-sm' 
-                            : 'bg-orange-100 text-orange-800'
-                        }`}
-                      >
-                        #{tag}
+                {/* Categories and Tags - Side by Side */}
+                <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-6">
+                  {/* Categories Section */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <Folder className={`w-4 h-4 ${curation.cover_image_url ? 'text-white/80' : 'text-gray-600'}`} />
+                      <span className={`text-sm font-medium ${curation.cover_image_url ? 'text-white/80' : 'text-gray-600'}`}>
+                        Categories:
                       </span>
-                    ))}
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-1.5">
+                      <span className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${
+                        curation.cover_image_url 
+                          ? 'bg-white/30 text-white border-white/40 backdrop-blur-sm' 
+                          : 'bg-gradient-to-r from-pink-50 to-orange-50 text-pink-700 border-pink-200'
+                      }`}>
+                        {formatCategoryName(curation.primary_category)}
+                      </span>
+                      
+                      {curation.secondary_category && (
+                        <span className={`px-2.5 py-1 rounded-md text-xs font-medium border ${
+                          curation.cover_image_url 
+                            ? 'bg-white/20 text-white/90 border-white/30 backdrop-blur-sm' 
+                            : 'bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 border-blue-200'
+                        }`}>
+                          {formatCategoryName(curation.secondary_category)}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                )}
+
+                  {/* Tags Section */}
+                  {curation.tags && curation.tags.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Tag className={`w-4 h-4 ${curation.cover_image_url ? 'text-white/80' : 'text-gray-600'}`} />
+                        <span className={`text-sm font-medium ${curation.cover_image_url ? 'text-white/80' : 'text-gray-600'}`}>
+                          Tags:
+                        </span>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-1.5">
+                        {curation.tags.slice(0, 4).map((tag, index) => (
+                          <span 
+                            key={index}
+                            className={`px-2.5 py-1 rounded-md text-xs font-medium ${
+                              curation.cover_image_url 
+                                ? 'bg-white/20 text-white backdrop-blur-sm' 
+                                : 'bg-orange-100 text-orange-800'
+                            }`}
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                        {curation.tags.length > 4 && (
+                          <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${
+                            curation.cover_image_url 
+                              ? 'bg-white/10 text-white/80 backdrop-blur-sm' 
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            +{curation.tags.length - 4}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Stats and actions */}
                 <div className="flex items-center gap-6">

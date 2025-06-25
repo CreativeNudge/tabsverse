@@ -1,22 +1,17 @@
 // TypeScript configuration for strict type checking
 // This prevents runtime errors by catching type issues at build time
 
-export type PersonalityType = 'creative' | 'ambitious' | 'wanderlust' | 'technical' | 'artistic' | 'mindful'
+import type { Database } from './database'
 
-export interface PersonalityStyles {
-  titleFont: string
-  cardStyle: string
-  textColor: string
-  border: string
-}
-
-export type PersonalityStylesMap = Record<PersonalityType, PersonalityStyles>
+// Use the database enum for categories
+export type CollectionCategory = Database['public']['Enums']['collection_category']
 
 export interface CollectionData {
   id: string
   title: string
   description: string
-  personality: PersonalityType
+  primary_category: CollectionCategory
+  secondary_category?: CollectionCategory | null
   coverImage: string
   itemCount: number
   likes: number
@@ -24,8 +19,8 @@ export interface CollectionData {
   comments: number
   lastUpdated: string
   tags: string[]
-  mood: string
-  icon: any // Lucide icon component
+  primaryIcon: any // Lucide icon component
+  secondaryIcon?: any // Lucide icon component for secondary category
   gradient: string
 }
 
@@ -38,7 +33,8 @@ export interface UserStats {
 export interface RecentGroup {
   id: string
   name: string
-  category: string
+  primary_category: CollectionCategory
+  secondary_category?: CollectionCategory | null
   tabCount: number
   likes: number
   views: number
@@ -75,7 +71,8 @@ export interface CreateCurationFormData {
   visibility: 'private' | 'public'
   tags: string[]
   coverImage?: string
-  personality: PersonalityType
+  primary_category: CollectionCategory
+  secondary_category?: CollectionCategory | null
 }
 
 // API response types
@@ -91,3 +88,24 @@ export interface PaginatedResponse<T> {
   hasMore: boolean
   nextCursor?: string
 }
+
+// Category information for UI
+export interface CategoryInfo {
+  value: CollectionCategory
+  label: string
+  description: string
+  icon: any // Lucide icon component
+  color: string
+  gradient: string
+  keywords: string[]
+}
+
+// Legacy support - will be removed in future versions
+export type PersonalityType = 'creative' | 'ambitious' | 'wanderlust' | 'technical' | 'artistic' | 'mindful'
+export interface PersonalityStyles {
+  titleFont: string
+  cardStyle: string
+  textColor: string
+  border: string
+}
+export type PersonalityStylesMap = Record<PersonalityType, PersonalityStyles>

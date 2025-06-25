@@ -11,7 +11,7 @@ import CollectionGrid from '@/components/curations/CollectionGrid'
 
 export default function DashboardPage() {
   const { user } = useAuth()
-  const { data: groups = [], isLoading: groupsLoading, error: groupsError } = useGroups()
+  const { data: groups = [], isLoading: groupsLoading, error: groupsError, refetch } = useGroups()
 
   // Transform data for UI (production-level transformation)
   // Only show real data, no mock data fallback for authenticated users
@@ -22,6 +22,17 @@ export default function DashboardPage() {
     linksCurated: groups.reduce((sum, g) => sum + (g.tab_count || 0), 0),
     curationsCount: groups.length,
     totalViews: groups.reduce((sum, g) => sum + (g.view_count || 0), 0)
+  }
+
+  // Handle successful deletion
+  const handleCurationDeleted = (deletedId: string) => {
+    // The delete API handles the removal, so we just need to refresh
+    refetch()
+  }
+
+  const handleUpdate = () => {
+    // Refresh the curations list
+    refetch()
   }
 
   return (
@@ -64,7 +75,11 @@ export default function DashboardPage() {
             </button>
           </div>
         ) : (
-          <CollectionGrid collections={collections} />
+          <CollectionGrid 
+            collections={collections} 
+            onDelete={handleCurationDeleted}
+            onUpdate={handleUpdate}
+          />
         )}
       </div>
     </>

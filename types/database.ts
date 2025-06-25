@@ -72,6 +72,8 @@ export interface Database {
           slug: string
           cover_image_url: string | null
           visibility: 'private' | 'public'
+          primary_category: 'technology' | 'design' | 'business' | 'education' | 'lifestyle' | 'travel' | 'food' | 'entertainment' | 'news' | 'shopping' | 'home' | 'finance'
+          secondary_category: 'technology' | 'design' | 'business' | 'education' | 'lifestyle' | 'travel' | 'food' | 'entertainment' | 'news' | 'shopping' | 'home' | 'finance' | null
           tab_count: number
           view_count: number
           like_count: number
@@ -91,6 +93,8 @@ export interface Database {
           slug: string
           cover_image_url?: string | null
           visibility?: 'private' | 'public'
+          primary_category: 'technology' | 'design' | 'business' | 'education' | 'lifestyle' | 'travel' | 'food' | 'entertainment' | 'news' | 'shopping' | 'home' | 'finance'
+          secondary_category?: 'technology' | 'design' | 'business' | 'education' | 'lifestyle' | 'travel' | 'food' | 'entertainment' | 'news' | 'shopping' | 'home' | 'finance' | null
           tab_count?: number
           view_count?: number
           like_count?: number
@@ -110,6 +114,8 @@ export interface Database {
           slug?: string
           cover_image_url?: string | null
           visibility?: 'private' | 'public'
+          primary_category?: 'technology' | 'design' | 'business' | 'education' | 'lifestyle' | 'travel' | 'food' | 'entertainment' | 'news' | 'shopping' | 'home' | 'finance'
+          secondary_category?: 'technology' | 'design' | 'business' | 'education' | 'lifestyle' | 'travel' | 'food' | 'entertainment' | 'news' | 'shopping' | 'home' | 'finance' | null
           tab_count?: number
           view_count?: number
           like_count?: number
@@ -430,6 +436,7 @@ export interface Database {
       subscription_status: 'active' | 'cancelled' | 'trialing'
       visibility: 'private' | 'public'
       resource_type: 'webpage' | 'pdf' | 'video' | 'image' | 'document'
+      collection_category: 'technology' | 'design' | 'business' | 'education' | 'lifestyle' | 'travel' | 'food' | 'entertainment' | 'news' | 'shopping' | 'home' | 'finance'
     }
     CompositeTypes: {
       [_ in never]: never
@@ -470,6 +477,7 @@ export type SubscriptionTier = Database['public']['Enums']['subscription_tier']
 export type SubscriptionStatus = Database['public']['Enums']['subscription_status']
 export type Visibility = Database['public']['Enums']['visibility']
 export type ResourceType = Database['public']['Enums']['resource_type']
+export type CollectionCategory = Database['public']['Enums']['collection_category']
 
 // Extended types with relationships
 export interface GroupWithUser extends Group {

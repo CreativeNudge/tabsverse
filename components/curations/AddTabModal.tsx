@@ -1,7 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, Link, Globe, FileText, Video, FileImage, Download, Sparkles } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import Image from 'next/image'
+import { Plus, Link, Globe, FileText, Video, FileImage, Download, Sparkles, Loader2, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { fetchUrlMetadata, type UrlMetadata } from '@/lib/utils/urlMetadata'
+
+// Constants for validation
+const MAX_USER_TAGS = 6
 
 interface AddTabModalProps {
   isOpen: boolean
@@ -26,6 +31,7 @@ const resourceTypes = [
 ]
 
 export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTabModalProps) {
+  // Form state
   const [formData, setFormData] = useState({
     url: '',
     title: '',
@@ -35,7 +41,74 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
     notes: ''
   })
 
+  // Auto-detection state
+  const [metadata, setMetadata] = useState<UrlMetadata | null>(null)
+  const [fetchingMetadata, setFetchingMetadata] = useState(false)
+  const [metadataError, setMetadataError] = useState<string | null>(null)
+  
+  // UI state
+  const [simpleMode, setSimpleMode] = useState(true)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Parse and validate tags
+  const parsedTags = useMemo(() => {
+    if (!formData.tags.trim()) return []
+    return formData.tags
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0)
+      .slice(0, MAX_USER_TAGS) // Enforce limit
+  }, [formData.tags])
+
+  const tagLimitExceeded = parsedTags.length >= MAX_USER_TAGS
+
+  // Auto-fetch metadata when URL changes (with debouncing)
+  useEffect(() => {
+    if (!formData.url) {
+      setMetadata(null)
+      setMetadataError(null)
+      return
+    }
+
+    // Simple URL validation
+    let isValidUrl = false
+    try {
+      new URL(formData.url)
+      isValidUrl = true
+    } catch {
+      setMetadata(null)
+      setMetadataError(null)
+      return
+    }
+
+    if (!isValidUrl) return
+
+    // Debounce the metadata fetch
+    const timeoutId = setTimeout(async () => {
+      setFetchingMetadata(true)
+      setMetadataError(null)
+      
+      try {
+        const urlMetadata = await fetchUrlMetadata(formData.url)
+        setMetadata(urlMetadata)
+        
+        // Auto-populate form if fields are empty
+        setFormData(prev => ({
+          ...prev,
+          title: prev.title || urlMetadata.title,
+          description: prev.description || urlMetadata.description,
+          resource_type: prev.resource_type === 'webpage' ? urlMetadata.resourceType : prev.resource_type,
+          tags: prev.tags || urlMetadata.suggestedTags.join(', ')
+        }))
+      } catch (error) {
+        setMetadataError(error instanceof Error ? error.message : 'Failed to fetch metadata')
+      } finally {
+        setFetchingMetadata(false)
+      }
+    }, 1000) // 1 second debounce
+
+    return () => clearTimeout(timeoutId)
+  }, [formData.url])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,7 +142,7 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
         title: formData.title.trim(),
         description: formData.description.trim() || undefined,
         resource_type: formData.resource_type,
-        tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+        tags: parsedTags, // Use validated parsed tags
         notes: formData.notes.trim() || undefined
       })
       
@@ -82,6 +155,7 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
         tags: '',
         notes: ''
       })
+      setMetadata(null)
       setErrors({})
       onClose()
     } catch (error) {
@@ -89,24 +163,23 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
     }
   }
 
-  const handleUrlBlur = async () => {
-    if (!formData.url || formData.title) return
-
-    // Auto-fetch title from URL (basic implementation)
-    try {
-      const url = new URL(formData.url)
-      if (!formData.title) {
-        // Simple title extraction from domain
-        const domain = url.hostname.replace('www.', '')
-        setFormData(prev => ({
-          ...prev,
-          title: `${domain.charAt(0).toUpperCase() + domain.slice(1)} Resource`
-        }))
-      }
-    } catch {
-      // Invalid URL, ignore
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setFormData({
+        url: '',
+        title: '',
+        description: '',
+        resource_type: 'webpage',
+        tags: '',
+        notes: ''
+      })
+      setMetadata(null)
+      setMetadataError(null)
+      setSimpleMode(true)
+      setErrors({})
     }
-  }
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -132,7 +205,7 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
         {/* Modal Content */}
         <div className="flex-1 overflow-y-auto">
           <form id="add-tab-form" onSubmit={handleSubmit} className="p-8 space-y-6">
-            {/* URL */}
+            {/* URL Input */}
             <div>
               <label htmlFor="url" className="block text-sm font-semibold text-stone-700 mb-2">
                 URL *
@@ -144,119 +217,264 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
                   id="url"
                   value={formData.url}
                   onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
-                  onBlur={handleUrlBlur}
                   placeholder="https://example.com"
-                  className={`w-full pl-10 pr-4 py-3 border rounded-2xl focus:ring-2 focus:ring-orange-200 focus:border-orange-300 bg-white transition-all text-stone-700 placeholder-stone-400 ${
+                  className={`w-full pl-10 pr-12 py-3 border rounded-2xl focus:ring-2 focus:ring-orange-200 focus:border-orange-300 bg-white transition-all text-stone-700 placeholder-stone-400 ${
                     errors.url ? 'border-red-300' : 'border-stone-200'
                   }`}
                   autoFocus
                 />
+                {/* Loading/Status Indicator */}
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  {fetchingMetadata && (
+                    <Loader2 className="w-4 h-4 text-orange-500 animate-spin" />
+                  )}
+                  {metadata && !fetchingMetadata && (
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  )}
+                  {metadataError && !fetchingMetadata && (
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                  )}
+                </div>
               </div>
               {errors.url && <p className="mt-1 text-sm text-red-600">{errors.url}</p>}
+              {metadataError && <p className="mt-1 text-sm text-red-600">{metadataError}</p>}
             </div>
 
-            {/* Title */}
-            <div>
-              <label htmlFor="title" className="block text-sm font-semibold text-stone-700 mb-2">
-                Title *
-              </label>
-              <input
-                type="text"
-                id="title"
-                value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Give this tab a descriptive title"
-                className={`w-full px-4 py-3 border rounded-2xl focus:ring-2 focus:ring-orange-200 focus:border-orange-300 bg-white transition-all text-stone-700 placeholder-stone-400 text-lg ${
-                  errors.title ? 'border-red-300' : 'border-stone-200'
-                }`}
-                maxLength={100}
-              />
-              {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
-            </div>
-
-            {/* Quick Setup Row */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Description */}
-              <div>
-                <label htmlFor="description" className="block text-sm font-semibold text-stone-700 mb-2">Description (optional)</label>
-                <textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="What makes this tab special?"
-                  rows={3}
-                  className="w-full px-4 py-3 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-orange-200 focus:border-orange-300 bg-white transition-all text-stone-700 placeholder-stone-400 resize-none"
-                  maxLength={500}
-                />
+            {/* Auto-detected Preview */}
+            {metadata && !fetchingMetadata && (
+              <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-4 border border-orange-100">
+                <div className="flex items-start gap-4">
+                  {/* Thumbnail */}
+                  {metadata.thumbnail && (
+                    <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-stone-100">
+                      <Image 
+                        src={metadata.thumbnail} 
+                        alt="Page thumbnail"
+                        width={64}
+                        height={64}
+                        className="object-cover w-full h-full"
+                        onError={() => {
+                          // Handle error gracefully - the div will show gray background
+                        }}
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                      <p className="text-orange-800 font-medium text-sm">Auto-detected</p>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        metadata.confidence === 'high' ? 'bg-green-100 text-green-700' :
+                        metadata.confidence === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {metadata.confidence} confidence
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <p className="font-medium text-stone-800 text-sm line-clamp-2">
+                        {metadata.title}
+                      </p>
+                      {metadata.description && (
+                        <p className="text-stone-600 text-xs line-clamp-2">
+                          {metadata.description}
+                        </p>
+                      )}
+                      
+                      {/* Auto-detected tags and type */}
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
+                          {resourceTypes.find(t => t.value === metadata.resourceType)?.label || metadata.resourceType}
+                        </span>
+                        {metadata.suggestedTags.slice(0, 3).map(tag => (
+                          <span key={tag} className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
+            )}
 
-              {/* Quick Tags */}
+            {/* Toggle for Simple/Detailed Mode */}
+            <div className="flex items-center justify-between">
+              <button 
+                type="button"
+                onClick={() => setSimpleMode(!simpleMode)}
+                className="flex items-center gap-2 text-sm text-orange-600 hover:text-orange-800 font-medium transition-colors"
+              >
+                {simpleMode ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                {simpleMode ? 'Show more options' : 'Show fewer options'}
+              </button>
+              
+              {simpleMode && metadata && (
+                <p className="text-xs text-stone-500">
+                  We'll use the auto-detected information
+                </p>
+              )}
+            </div>
+
+            {/* Form Fields - Show based on mode */}
+            <div className={`space-y-6 transition-all duration-300 ${simpleMode ? 'opacity-50' : 'opacity-100'}`}>
+              {/* Title */}
               <div>
-                <label htmlFor="tags" className="block text-sm font-semibold text-stone-700 mb-2">Quick Tags</label>
+                <label htmlFor="title" className="block text-sm font-semibold text-stone-700 mb-2">
+                  Title {simpleMode && metadata ? '' : '*'}
+                </label>
                 <input
                   type="text"
-                  id="tags"
-                  value={formData.tags}
-                  onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
-                  placeholder="ai, tools, inspiration"
-                  className="w-full px-4 py-3 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-orange-200 focus:border-orange-300 bg-white transition-all text-stone-700 placeholder-stone-400"
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder={metadata?.title || "Give this tab a descriptive title"}
+                  disabled={simpleMode && !!metadata}
+                  className={`w-full px-4 py-3 border rounded-2xl focus:ring-2 focus:ring-orange-200 focus:border-orange-300 bg-white transition-all text-stone-700 placeholder-stone-400 text-lg ${
+                    errors.title ? 'border-red-300' : 'border-stone-200'
+                  } ${simpleMode && metadata ? 'bg-stone-50 cursor-not-allowed' : ''}`}
+                  maxLength={100}
                 />
-                <p className="mt-1 text-sm text-stone-500">Separate tags with commas</p>
+                {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
               </div>
+
+              {/* Show additional fields only in detailed mode */}
+              {!simpleMode && (
+                <>
+                  {/* Quick Setup Row */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Description */}
+                    <div>
+                      <label htmlFor="description" className="block text-sm font-semibold text-stone-700 mb-2">Description (optional)</label>
+                      <textarea
+                        id="description"
+                        value={formData.description}
+                        onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder={metadata?.description || "What makes this tab special?"}
+                        rows={3}
+                        className="w-full px-4 py-3 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-orange-200 focus:border-orange-300 bg-white transition-all text-stone-700 placeholder-stone-400 resize-none"
+                        maxLength={500}
+                      />
+                    </div>
+
+                    {/* Quick Tags */}
+                    <div>
+                      <label htmlFor="tags" className="flex items-center justify-between text-sm font-semibold text-stone-700 mb-2">
+                        <span>Quick Tags</span>
+                        <span className={`text-xs ${
+                          parsedTags.length > MAX_USER_TAGS * 0.8 
+                            ? 'text-orange-600 font-medium' 
+                            : 'text-stone-500'
+                        }`}>
+                          {parsedTags.length}/{MAX_USER_TAGS}
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        id="tags"
+                        value={formData.tags}
+                        onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
+                        placeholder={metadata?.suggestedTags.join(', ') || "ai, tools, inspiration"}
+                        className={`w-full px-4 py-3 border rounded-2xl focus:ring-2 transition-all text-stone-700 placeholder-stone-400 ${
+                          tagLimitExceeded 
+                            ? 'border-orange-300 focus:ring-orange-200 focus:border-orange-400 bg-orange-50' 
+                            : 'border-stone-200 focus:ring-orange-200 focus:border-orange-300 bg-white'
+                        }`}
+                      />
+                      
+                      {/* Tag Preview */}
+                      {parsedTags.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {parsedTags.slice(0, 4).map((tag, index) => (
+                            <span 
+                              key={index}
+                              className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-md"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                          {parsedTags.length > 4 && (
+                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md">
+                              +{parsedTags.length - 4}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Validation info */}
+                      {tagLimitExceeded ? (
+                        <p className="mt-1 text-xs text-orange-600">Maximum {MAX_USER_TAGS} tags allowed. Additional tags have been trimmed.</p>
+                      ) : (
+                        <p className="mt-1 text-xs text-stone-500">Separate tags with commas</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Resource Type Selection */}
+                  <div>
+                    <label className="block text-sm font-semibold text-stone-700 mb-3">Resource Type</label>
+                    <div className="grid grid-cols-5 gap-3">
+                      {resourceTypes.map((type) => {
+                        const IconComponent = type.icon
+                        const isSelected = formData.resource_type === type.value
+                        const isAutoDetected = metadata?.resourceType === type.value
+                        return (
+                          <button 
+                            key={type.value}
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, resource_type: type.value }))}
+                            className={`p-4 border rounded-2xl transition-all text-center group relative ${
+                              isSelected 
+                                ? 'border-orange-300 bg-orange-50 ring-2 ring-orange-200' 
+                                : 'border-stone-200 hover:border-orange-300 hover:bg-orange-50/50'
+                            }`}
+                          >
+                            {isAutoDetected && (
+                              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+                            )}
+                            <div className="flex flex-col items-center gap-2">
+                              <IconComponent className="w-5 h-5 text-orange-500" />
+                              <span className="text-xs font-semibold text-stone-800">{type.label}</span>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Personal Notes */}
+                  <div>
+                    <label htmlFor="notes" className="block text-sm font-semibold text-stone-700 mb-2">
+                      Personal Notes (optional)
+                    </label>
+                    <textarea
+                      id="notes"
+                      value={formData.notes}
+                      onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                      placeholder="Private notes about why you saved this tab..."
+                      rows={3}
+                      className="w-full px-4 py-3 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-orange-200 focus:border-orange-300 bg-white transition-all text-stone-700 placeholder-stone-400 resize-none"
+                    />
+                    <p className="mt-1 text-sm text-stone-500">Only you can see these notes</p>
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* Resource Type Selection */}
-            <div>
-              <label className="block text-sm font-semibold text-stone-700 mb-3">Resource Type</label>
-              <div className="grid grid-cols-5 gap-3">
-                {resourceTypes.map((type) => {
-                  const IconComponent = type.icon
-                  const isSelected = formData.resource_type === type.value
-                  return (
-                    <button 
-                      key={type.value}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, resource_type: type.value }))}
-                      className={`p-4 border rounded-2xl transition-all text-center group ${
-                        isSelected 
-                          ? 'border-orange-300 bg-orange-50 ring-2 ring-orange-200' 
-                          : 'border-stone-200 hover:border-orange-300 hover:bg-orange-50/50'
-                      }`}
-                    >
-                      <div className="flex flex-col items-center gap-2">
-                        <IconComponent className="w-5 h-5 text-orange-500" />
-                        <span className="text-xs font-semibold text-stone-800">{type.label}</span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Personal Notes */}
-            <div>
-              <label htmlFor="notes" className="block text-sm font-semibold text-stone-700 mb-2">
-                Personal Notes (optional)
-              </label>
-              <textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                placeholder="Private notes about why you saved this tab..."
-                rows={3}
-                className="w-full px-4 py-3 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-orange-200 focus:border-orange-300 bg-white transition-all text-stone-700 placeholder-stone-400 resize-none"
-              />
-              <p className="mt-1 text-sm text-stone-500">Only you can see these notes</p>
-            </div>
-
-            {/* Pro Tip */}
+            {/* Pro Tip - Updated for smart features */}
             <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-4 border border-orange-100">
               <div className="flex items-start gap-3">
                 <Sparkles className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-orange-800 font-medium text-sm">Pro Tip</p>
+                  <p className="text-orange-800 font-medium text-sm">Smart Detection</p>
                   <p className="text-orange-700 text-sm mt-1">
-                    We'll automatically try to fetch the page title and preview when you add the URL!
+                    {simpleMode 
+                      ? "We'll automatically detect the type, title, and tags from your URL!"
+                      : "Toggle simple mode for one-click adding with auto-detection, or customize everything here."
+                    }
                   </p>
                 </div>
               </div>
@@ -277,9 +495,9 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
           <button 
             type="submit"
             form="add-tab-form"
-            disabled={isLoading}
+            disabled={isLoading || fetchingMetadata}
             className={`px-8 py-3 rounded-2xl font-semibold transition-all duration-500 flex items-center gap-3 ${
-              isLoading 
+              isLoading || fetchingMetadata
                 ? 'bg-gradient-to-r from-[#31a9d6] to-[#000d85] text-white scale-105' 
                 : 'bg-gradient-to-r from-[#af0946] to-[#dc8c35] hover:from-[#31a9d6] hover:to-[#000d85] text-white hover:scale-105'
             } shadow-lg hover:shadow-xl`}
@@ -288,6 +506,11 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
               <>
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 Adding...
+              </>
+            ) : fetchingMetadata ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Detecting...
               </>
             ) : (
               <>

@@ -3,6 +3,10 @@ import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import type { Database } from '@/types/database'
 
+// Constants for validation
+const MAX_USER_TAGS = 6
+const FREE_TIER_CURATION_LIMIT = 5
+
 // Centralized auth utility for Next.js 15 compatibility
 async function getAuthenticatedUser() {
   const cookieStore = await cookies()
@@ -51,11 +55,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, visibility, tags, personality, coverImageUrl } = body
+    const { title, description, visibility, tags, primary_category, secondary_category, coverImageUrl } = body
 
     // Validate required fields
     if (!title || title.trim() === '') {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+    }
+
+    // Validate required category
+    if (!primary_category) {
+      return NextResponse.json({ error: 'Primary category is required' }, { status: 400 })
+    }
+
+    // Validate categories are different if secondary is provided
+    if (secondary_category && secondary_category === primary_category) {
+      return NextResponse.json({ error: 'Secondary category must be different from primary category' }, { status: 400 })
     }
 
     // Check user's current curation count (free tier limit: 5)
@@ -70,9 +84,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Enforce free tier limit
-    if (currentCount && currentCount >= 5) {
+    if (currentCount && currentCount >= FREE_TIER_CURATION_LIMIT) {
       return NextResponse.json({ 
-        error: 'Free tier limit reached. You can create up to 5 curations.' 
+        error: `Free tier limit reached. You can create up to ${FREE_TIER_CURATION_LIMIT} curations.` 
       }, { status: 400 })
     }
 
@@ -100,10 +114,22 @@ export async function POST(request: NextRequest) {
       counter++
     }
 
-    // Process tags
-    const processedTags = tags 
-      ? tags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0)
-      : [personality] // Use personality as default tag
+    // Process and validate tags
+    let processedTags: string[] = []
+    if (tags && typeof tags === 'string') {
+      processedTags = tags
+        .split(',')
+        .map((tag: string) => tag.trim())
+        .filter((tag: string) => tag.length > 0 && tag.length <= 50) // Individual tag length limit
+        .slice(0, MAX_USER_TAGS) // Enforce maximum tag count
+    }
+    
+    // Validate tag count
+    if (processedTags.length > MAX_USER_TAGS) {
+      return NextResponse.json({ 
+        error: `Maximum ${MAX_USER_TAGS} tags allowed` 
+      }, { status: 400 })
+    }
 
     // Create the curation
     const { data: newGroup, error: insertError } = await supabase
@@ -115,11 +141,13 @@ export async function POST(request: NextRequest) {
         slug: finalSlug,
         cover_image_url: coverImageUrl || null,
         visibility: visibility || 'private',
+        primary_category: primary_category,
+        secondary_category: secondary_category || null,
         tags: processedTags,
         settings: {
-          personality: personality || 'creative',
           allow_comments: true,
-          display_style: 'grid'
+          display_style: 'grid',
+          personality: 'creative' // Default personality for backward compatibility
         }
       })
       .select(`

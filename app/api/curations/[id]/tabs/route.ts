@@ -1,20 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerSupabaseClient } from '@/lib/supabase/server'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
+import type { Database } from '@/types/database'
+
+// Auth helper compatible with Next.js 15
+async function getAuthenticatedUser() {
+  const cookieStore = await cookies()
+  const supabase = createRouteHandlerClient<Database>({ 
+    cookies: () => cookieStore 
+  } as any)
+  
+  const { data: { user }, error } = await supabase.auth.getUser()
+  return { user, error, supabase }
+}
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createRouteHandlerSupabaseClient()
-    const { id: groupId } = await params
-    const body = await request.json()
-
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { user, error: authError, supabase } = await getAuthenticatedUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const { id: groupId } = await params
+    const body = await request.json()
 
     // Verify user owns this curation
     const { data: curation, error: fetchError } = await supabase
