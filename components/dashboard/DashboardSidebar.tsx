@@ -1,4 +1,6 @@
 import Image from 'next/image'
+import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { 
   Home, 
   User, 
@@ -29,6 +31,21 @@ const sidebarItems: SidebarItem[] = [
 ]
 
 export default function DashboardSidebar({ activeSection, onSectionChange, onSignOut }: DashboardSidebarProps) {
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null)
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 })
+
+  const handleMouseEnter = (itemId: string, event: React.MouseEvent) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    setTooltipPosition({
+      x: rect.right + 8,
+      y: rect.top + rect.height / 2
+    })
+    setHoveredItem(itemId)
+  }
+
+  const handleMouseLeave = () => {
+    setHoveredItem(null)
+  }
   return (
     <div className="relative w-20 bg-white/80 backdrop-blur-xl flex flex-col items-center shadow-xl border-r border-orange-100/50">
       {/* Subtle gradient overlay */}
@@ -52,6 +69,8 @@ export default function DashboardSidebar({ activeSection, onSectionChange, onSig
           <button
             key={item.id}
             onClick={() => onSectionChange(item.id)}
+            onMouseEnter={(e) => handleMouseEnter(item.id, e)}
+            onMouseLeave={handleMouseLeave}
             className={`group relative w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
               activeSection === item.id
                 ? 'bg-gradient-to-br from-[#af0946] to-[#dc8c35] text-white shadow-md'
@@ -59,12 +78,6 @@ export default function DashboardSidebar({ activeSection, onSectionChange, onSig
             }`}
           >
             <item.icon className="w-5 h-5 relative z-10" />
-            
-            {/* Tooltip */}
-            <div className="absolute left-16 px-3 py-2 bg-stone-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap pointer-events-none z-30 shadow-lg">
-              {item.label}
-              <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-stone-800 rotate-45"></div>
-            </div>
           </button>
         ))}
       </div>
@@ -74,25 +87,51 @@ export default function DashboardSidebar({ activeSection, onSectionChange, onSig
       
       {/* Bottom actions */}
       <div className="pb-6 space-y-2 relative z-10">
-        <button className="group relative w-12 h-12 rounded-xl flex items-center justify-center text-stone-600 hover:text-orange-600 hover:bg-orange-50 transition-all duration-200">
+        <button 
+          onClick={() => onSectionChange('settings')}
+          onMouseEnter={(e) => handleMouseEnter('settings', e)}
+          onMouseLeave={handleMouseLeave}
+          className={`group relative w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 ${
+            activeSection === 'settings'
+              ? 'bg-gradient-to-br from-[#af0946] to-[#dc8c35] text-white shadow-md'
+              : 'text-stone-600 hover:text-orange-600 hover:bg-orange-50'
+          }`}
+        >
           <Settings className="w-5 h-5" />
-          <div className="absolute left-16 px-3 py-2 bg-stone-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap pointer-events-none z-30 shadow-lg">
-            Settings
-            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-stone-800 rotate-45"></div>
-          </div>
         </button>
         
         <button 
           onClick={onSignOut}
+          onMouseEnter={(e) => handleMouseEnter('signout', e)}
+          onMouseLeave={handleMouseLeave}
           className="group relative w-12 h-12 rounded-xl flex items-center justify-center text-stone-600 hover:text-red-500 hover:bg-red-50 transition-all duration-200"
         >
           <LogOut className="w-5 h-5" />
-          <div className="absolute left-16 px-3 py-2 bg-stone-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap pointer-events-none z-30 shadow-lg">
-            Sign Out
-            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-stone-800 rotate-45"></div>
-          </div>
         </button>
       </div>
+      
+      {/* Portal-based tooltips that appear on top of everything */}
+      {hoveredItem && typeof window !== 'undefined' && createPortal(
+        <div 
+          className="fixed pointer-events-none z-[99999] transition-opacity duration-200"
+          style={{
+            left: tooltipPosition.x,
+            top: tooltipPosition.y,
+            transform: 'translateY(-50%)'
+          }}
+        >
+          <div className="px-3 py-2 bg-stone-800 text-white text-sm rounded-lg shadow-2xl whitespace-nowrap">
+            {hoveredItem === 'home' && 'Home'}
+            {hoveredItem === 'personal' && 'Personal'}
+            {hoveredItem === 'shared' && 'Shared'}
+            {hoveredItem === 'community' && 'Community'}
+            {hoveredItem === 'settings' && 'Settings'}
+            {hoveredItem === 'signout' && 'Sign Out'}
+            <div className="absolute right-full top-1/2 transform -translate-y-1/2 w-2 h-2 bg-stone-800 rotate-45"></div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
