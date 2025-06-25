@@ -10,7 +10,6 @@ import {
   Eye, 
   Share2, 
   ExternalLink, 
-  MoreHorizontal,
   Calendar,
   Tag,
   Star,
@@ -23,16 +22,18 @@ import {
   Plus,
   Link as LinkIcon,
   Trash2,
-  Edit,
   ArrowLeft,
   User,
-  Folder
+  Folder,
+  ImageIcon,
+  Pencil
 } from 'lucide-react'
 import { useGroup, useLikeGroup, useUnlikeGroup, useDeleteGroup } from '@/lib/hooks/useGroups'
 import { useCreateTab, useTrackTabClick } from '@/lib/hooks/useTabs'
 import { useAuth } from '@/lib/hooks/useAuth'
 import AddTabModal from '@/components/curations/AddTabModal'
 import FloatingActionButton from '@/components/dashboard/FloatingActionButton'
+import { generateSmartCoverImage } from '@/lib/utils/dataTransforms'
 
 // Resource type icons
 const getResourceIcon = (type: string) => {
@@ -53,7 +54,7 @@ const formatCategoryName = (category: string) => {
     .join(' ')
 }
 
-// Personality-based styling
+// Personality-based styling from our design system
 const getPersonalityStyles = (personality: string) => {
   switch (personality) {
     case 'creative':
@@ -73,6 +74,11 @@ const getPersonalityStyles = (personality: string) => {
   }
 }
 
+// Get the best cover image (custom upload or smart auto-selection)
+const getCoverImageUrl = (curation: any) => {
+  return curation.cover_image_url || generateSmartCoverImage(curation.primary_category, curation.id)
+}
+
 // Tab card component
 function TabCard({ tab, personality, onTabClick }: { 
   tab: any
@@ -80,17 +86,15 @@ function TabCard({ tab, personality, onTabClick }: {
   onTabClick: (url: string) => void 
 }) {
   const ResourceIcon = getResourceIcon(tab.resource_type)
-  const personalityClass = getPersonalityStyles(personality)
 
   const handleClick = () => {
     onTabClick(tab.url)
-    // Open link in new tab
     window.open(tab.url, '_blank', 'noopener,noreferrer')
   }
 
   return (
     <div 
-      className={`group bg-white/80 backdrop-blur-xl rounded-2xl border border-orange-100/50 hover:border-orange-200/50 transition-all duration-700 hover:shadow-2xl hover:shadow-orange-100/20 cursor-pointer ${personalityClass}`}
+      className={`group bg-white/80 backdrop-blur-xl rounded-2xl border border-orange-100/50 hover:border-orange-200/50 transition-all duration-700 hover:shadow-2xl hover:shadow-orange-100/20 cursor-pointer ${getPersonalityStyles(personality)}`}
       onClick={handleClick}
     >
       {/* Thumbnail */}
@@ -108,21 +112,11 @@ function TabCard({ tab, personality, onTabClick }: {
           </div>
         )}
         
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        
         {/* Resource type badge */}
         <div className="absolute top-3 right-3 bg-black/80 text-white px-2 py-1 rounded-lg text-xs font-medium backdrop-blur-sm">
           <ResourceIcon className="w-3 h-3 inline mr-1" />
           {tab.resource_type}
         </div>
-
-        {/* Favorite star */}
-        {tab.is_favorite && (
-          <div className="absolute top-3 left-3 bg-yellow-500/90 text-white p-1.5 rounded-lg backdrop-blur-sm">
-            <Star className="w-3 h-3 fill-current" />
-          </div>
-        )}
 
         {/* External link indicator */}
         <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -153,7 +147,7 @@ function TabCard({ tab, personality, onTabClick }: {
         </div>
 
         {/* Title */}
-        <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-[#af0946] group-hover:to-[#dc8c35] group-hover:bg-clip-text transition-all duration-500">
+        <h3 className={`text-lg font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-[#af0946] group-hover:to-[#dc8c35] group-hover:bg-clip-text transition-all duration-500 ${getPersonalityStyles(personality)}`}>
           {tab.title}
         </h3>
 
@@ -182,21 +176,6 @@ function TabCard({ tab, personality, onTabClick }: {
             )}
           </div>
         )}
-
-        {/* Notes (if any) */}
-        {tab.notes && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
-            <p className="text-amber-800 text-sm italic">"{tab.notes}"</p>
-          </div>
-        )}
-
-        {/* Metadata */}
-        {tab.metadata?.reading_time && (
-          <div className="flex items-center gap-2 text-xs text-gray-400 mt-3">
-            <Clock className="w-3 h-3" />
-            {tab.metadata.reading_time} min read
-          </div>
-        )}
       </div>
     </div>
   )
@@ -215,8 +194,12 @@ export default function CurationDetailPage() {
   const createTabMutation = useCreateTab(curationId)
   const trackClickMutation = useTrackTabClick()
 
-  const [showActions, setShowActions] = useState(false)
   const [showAddTab, setShowAddTab] = useState(false)
+  const [showEditImage, setShowEditImage] = useState(false)
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [editingDescription, setEditingDescription] = useState(false)
+  const [tempTitle, setTempTitle] = useState('')
+  const [tempDescription, setTempDescription] = useState('')
 
   if (isLoading) {
     return (
@@ -243,9 +226,16 @@ export default function CurationDetailPage() {
     )
   }
 
+  // Permission system: Owner (creator) has full control, collaborators can edit/add, public can only view
   const isOwner = user?.id === curation.user_id
+  const isCollaborator = false // TODO: Implement collaborator system in future
+  const canEdit = isOwner || isCollaborator
+  const canDelete = isOwner // Only creator can delete
   const personality = (curation.settings as any)?.personality || 'creative'
   const displayStyle = (curation.settings as any)?.display_style || 'grid'
+  
+  // Get the cover image (custom upload or auto-selected)
+  const coverImageUrl = getCoverImageUrl(curation)
 
   const handleLike = async () => {
     if (!user) return
@@ -283,17 +273,14 @@ export default function CurationDetailPage() {
           url: window.location.href,
         })
       } catch (error) {
-        // Fallback to clipboard
         navigator.clipboard.writeText(window.location.href)
       }
     } else {
-      // Fallback to clipboard
       navigator.clipboard.writeText(window.location.href)
     }
   }
 
   const handleTabClick = async (url: string, tabId: string) => {
-    // Track click analytics
     trackClickMutation.mutate(tabId)
   }
 
@@ -310,7 +297,7 @@ export default function CurationDetailPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50/30 to-orange-50/20">
-      {/* Header */}
+      {/* Header - Simplified */}
       <div className="bg-white/80 backdrop-blur-xl border-b border-orange-100/50 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -321,296 +308,377 @@ export default function CurationDetailPage() {
               <ArrowLeft className="w-5 h-5" />
               Back
             </button>
-
-            {isOwner && (
-              <div className="relative">
-                <button
-                  onClick={() => setShowActions(!showActions)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <MoreHorizontal className="w-5 h-5" />
-                </button>
-
-                {showActions && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
-                    <button 
-                      className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
-                      onClick={() => router.push(`/curations/${curationId}/edit`)}
-                    >
-                      <Edit className="w-4 h-4" />
-                      Edit Curation
-                    </button>
-                    <button 
-                      className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-red-600"
-                      onClick={handleDelete}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Delete Curation
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Hero Section */}
-      <div className="relative">
-        {/* Cover Image */}
-        {curation.cover_image_url && (
-          <div className="relative h-96 overflow-hidden">
-            <Image
-              src={curation.cover_image_url}
-              alt={curation.title}
-              fill
-              className="object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-          </div>
-        )}
-
-        {/* Content Overlay */}
-        <div className={`relative ${curation.cover_image_url ? 'absolute inset-0 flex items-end' : 'py-16'}`}>
-          <div className="max-w-7xl mx-auto px-6 py-8">
-            <div className="flex items-start justify-between">
-              <div className={`${curation.cover_image_url ? 'text-white' : 'text-gray-900'} max-w-4xl`}>
-                {/* User info */}
-                <div className="flex items-center gap-3 mb-4">
-                  {curation.user.avatar_url ? (
-                    <Image
-                      src={curation.user.avatar_url}
-                      alt={curation.user.full_name || 'User'}
-                      width={48}
-                      height={48}
-                      className="rounded-full border-2 border-white/20"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-orange-500 rounded-full flex items-center justify-center border-2 border-white/20">
-                      <User className="w-6 h-6 text-white" />
-                    </div>
-                  )}
-                  <div>
-                    <p className="font-medium">
-                      {curation.user.full_name || curation.user.username || 'Anonymous'}
-                    </p>
-                    <p className={`text-sm ${curation.cover_image_url ? 'text-white/80' : 'text-gray-600'}`}>
-                      @{curation.user.username || 'user'}
-                    </p>
-                  </div>
+      {/* COMPACT HORIZONTAL LAYOUT with Inline Editing */}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        
+        {/* Main Content: Compact Horizontal Layout */}
+        <div className="flex flex-col lg:flex-row gap-6 mb-8 group">
+          
+          {/* LEFT: Compact Cover Image (200x200) */}
+          <div className="lg:w-[200px] lg:h-[200px] w-full h-48 lg:flex-shrink-0">
+            <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-lg group/image">
+              <Image
+                src={coverImageUrl}
+                alt={curation.title}
+                fill
+                className="object-cover transition-transform duration-500 group-hover/image:scale-105"
+                priority
+              />
+              
+              {/* Edit Image Overlay (Edit Permission) */}
+              {canEdit && (
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <button
+                    onClick={() => setShowEditImage(true)}
+                    className="px-3 py-1.5 bg-white/90 text-gray-800 rounded-lg font-medium hover:bg-white transition-colors flex items-center gap-1.5 shadow-lg text-xs"
+                  >
+                    <ImageIcon className="w-3 h-3" />
+                    Edit Image
+                  </button>
                 </div>
+              )}
+            </div>
+          </div>
 
-                {/* Title */}
-                <h1 className={`text-4xl font-bold mb-4 ${getPersonalityStyles(personality)}`}>
-                  {curation.title}
-                </h1>
-
-                {/* Description */}
-                {curation.description && (
-                  <p className={`text-lg mb-6 leading-relaxed ${curation.cover_image_url ? 'text-white/90' : 'text-gray-700'}`}>
-                    {curation.description}
-                  </p>
+          {/* RIGHT: Dense Information Layout */}
+          <div className="flex-1 min-w-0">
+            
+            {/* Top Row: Title with inline edit + user info beside it */}
+            <div className="flex items-center gap-3 mb-3">
+              {/* Title with inline edit */}
+              <div className="flex items-center gap-2 group/title">
+                {editingTitle ? (
+                  <input
+                    type="text"
+                    value={tempTitle}
+                    onChange={(e) => setTempTitle(e.target.value)}
+                    onBlur={() => {
+                      // TODO: Save title
+                      setEditingTitle(false)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        // TODO: Save title
+                        setEditingTitle(false)
+                      }
+                      if (e.key === 'Escape') {
+                        setTempTitle(curation.title)
+                        setEditingTitle(false)
+                      }
+                    }}
+                    className="text-2xl lg:text-3xl font-bold text-gray-900 leading-tight bg-transparent border-none outline-none focus:ring-2 focus:ring-orange-200 rounded px-1"
+                    autoFocus
+                  />
+                ) : (
+                  <>
+                    <h1 className={`text-2xl lg:text-3xl font-bold text-gray-900 leading-tight ${getPersonalityStyles(personality)}`}>
+                      {curation.title}
+                    </h1>
+                    {canEdit && (
+                      <button
+                        onClick={() => {
+                          setTempTitle(curation.title)
+                          setEditingTitle(true)
+                        }}
+                        className="p-1 hover:bg-gray-100 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                        title="Edit title"
+                      >
+                        <Pencil className="w-4 h-4 text-gray-500 hover:text-gray-700" />
+                      </button>
+                    )}
+                  </>
                 )}
+              </div>
 
-                {/* Categories and Tags - Side by Side */}
-                <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-6">
-                  {/* Categories Section */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <Folder className={`w-4 h-4 ${curation.cover_image_url ? 'text-white/80' : 'text-gray-600'}`} />
-                      <span className={`text-sm font-medium ${curation.cover_image_url ? 'text-white/80' : 'text-gray-600'}`}>
-                        Categories:
-                      </span>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-1.5">
-                      <span className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${
-                        curation.cover_image_url 
-                          ? 'bg-white/30 text-white border-white/40 backdrop-blur-sm' 
-                          : 'bg-gradient-to-r from-pink-50 to-orange-50 text-pink-700 border-pink-200'
-                      }`}>
-                        {formatCategoryName(curation.primary_category)}
-                      </span>
-                      
-                      {curation.secondary_category && (
-                        <span className={`px-2.5 py-1 rounded-md text-xs font-medium border ${
-                          curation.cover_image_url 
-                            ? 'bg-white/20 text-white/90 border-white/30 backdrop-blur-sm' 
-                            : 'bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 border-blue-200'
-                        }`}>
-                          {formatCategoryName(curation.secondary_category)}
-                        </span>
-                      )}
-                    </div>
+              {/* User Info - Right beside title (Instagram-style) */}
+              <button 
+                onClick={() => router.push(`/users/${curation.user.username || curation.user.id}`)}
+                className="flex items-center gap-2 flex-shrink-0 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors group/user"
+              >
+                {curation.user.avatar_url ? (
+                  <Image
+                    src={curation.user.avatar_url}
+                    alt={curation.user.full_name || 'User'}
+                    width={28}
+                    height={28}
+                    className="rounded-full border border-orange-200 group-hover/user:border-orange-300 transition-colors"
+                  />
+                ) : (
+                  <div className="w-7 h-7 bg-gradient-to-br from-pink-500 to-orange-500 rounded-full flex items-center justify-center border border-orange-200 group-hover/user:border-orange-300 transition-colors">
+                    <User className="w-3.5 h-3.5 text-white" />
                   </div>
+                )}
+                <div className="min-w-0 text-left">
+                  <p className="text-sm font-medium text-gray-700 group-hover/user:text-gray-900 transition-colors">
+                    {curation.user.full_name || curation.user.username || 'Anonymous'}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate group-hover/user:text-gray-400 transition-colors">
+                    @{curation.user.username || 'user'}
+                  </p>
+                </div>
+              </button>
+            </div>
 
-                  {/* Tags Section */}
-                  {curation.tags && curation.tags.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <Tag className={`w-4 h-4 ${curation.cover_image_url ? 'text-white/80' : 'text-gray-600'}`} />
-                        <span className={`text-sm font-medium ${curation.cover_image_url ? 'text-white/80' : 'text-gray-600'}`}>
-                          Tags:
-                        </span>
-                      </div>
-                      
-                      <div className="flex flex-wrap gap-1.5">
+            {/* Description with inline edit */}
+            <div className="mb-3">
+              {editingDescription ? (
+                <textarea
+                  value={tempDescription}
+                  onChange={(e) => setTempDescription(e.target.value)}
+                  onBlur={() => {
+                    // TODO: Save description
+                    setEditingDescription(false)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setTempDescription(curation.description || '')
+                      setEditingDescription(false)
+                    }
+                  }}
+                  className="w-full text-gray-700 text-sm leading-relaxed bg-transparent border border-orange-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-200 focus:border-orange-300 outline-none resize-none"
+                  rows={2}
+                  placeholder="Add a description..."
+                  autoFocus
+                />
+              ) : (
+                <div className="group/description">
+                  {curation.description ? (
+                    <p 
+                      onClick={() => {
+                        if (canEdit) {
+                          setTempDescription(curation.description || '')
+                          setEditingDescription(true)
+                        }
+                      }}
+                      className={`text-gray-700 text-sm leading-relaxed line-clamp-2 ${
+                        canEdit ? 'cursor-pointer hover:bg-gray-50 rounded px-2 py-1 -mx-2 -my-1' : ''
+                      }`}
+                      title={canEdit ? 'Click to edit description' : ''}
+                    >
+                      {curation.description}
+                    </p>
+                  ) : canEdit ? (
+                    <button
+                      onClick={() => {
+                        setTempDescription('')
+                        setEditingDescription(true)
+                      }}
+                      className="text-gray-500 text-sm italic hover:text-gray-700 hover:bg-gray-50 rounded px-2 py-1 -mx-2 -my-1 transition-colors"
+                    >
+                      Click to add description...
+                    </button>
+                  ) : null}
+                </div>
+              )}
+            </div>
+
+            {/* Categories and Tags with edit controls */}
+            <div className="flex flex-wrap gap-4 mb-4">
+              {/* Categories */}
+              <div className="flex items-center gap-2 group/categories">
+                <Folder className="w-4 h-4 text-gray-500" />
+                <span className="px-2 py-1 bg-gradient-to-r from-pink-50 to-orange-50 text-pink-700 border border-pink-200 rounded-lg text-xs font-medium">
+                  {formatCategoryName(curation.primary_category)}
+                </span>
+                {curation.secondary_category && (
+                  <span className="px-2 py-1 bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-medium">
+                    {formatCategoryName(curation.secondary_category)}
+                  </span>
+                )}
+                {canEdit && (
+                  <button
+                    onClick={() => {
+                      // TODO: Open category edit modal
+                      console.log('Edit categories')
+                    }}
+                    className="p-1 hover:bg-gray-100 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                    title="Edit categories"
+                  >
+                    <Pencil className="w-3 h-3 text-gray-500 hover:text-gray-700" />
+                  </button>
+                )}
+              </div>
+
+              {/* Tags */}
+              {(curation.tags && curation.tags.length > 0) || canEdit ? (
+                <div className="flex items-center gap-1.5 group/tags">
+                  <Tag className="w-4 h-4 text-gray-500" />
+                  <div className="flex flex-wrap gap-1">
+                    {curation.tags && curation.tags.length > 0 ? (
+                      <>
                         {curation.tags.slice(0, 4).map((tag, index) => (
                           <span 
                             key={index}
-                            className={`px-2.5 py-1 rounded-md text-xs font-medium ${
-                              curation.cover_image_url 
-                                ? 'bg-white/20 text-white backdrop-blur-sm' 
-                                : 'bg-orange-100 text-orange-800'
-                            }`}
+                            className="px-2 py-1 bg-orange-100 text-orange-800 rounded-lg text-xs font-medium"
                           >
                             #{tag}
                           </span>
                         ))}
                         {curation.tags.length > 4 && (
-                          <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${
-                            curation.cover_image_url 
-                              ? 'bg-white/10 text-white/80 backdrop-blur-sm' 
-                              : 'bg-gray-100 text-gray-600'
-                          }`}>
+                          <span className="px-2 py-1 bg-gray-100 text-gray-500 rounded-lg text-xs">
                             +{curation.tags.length - 4}
                           </span>
                         )}
-                      </div>
-                    </div>
+                      </>
+                    ) : canEdit ? (
+                      <span className="text-xs text-gray-500 italic">No tags yet</span>
+                    ) : null}
+                  </div>
+                  {canEdit && (
+                    <button
+                      onClick={() => {
+                        // TODO: Open tags edit modal
+                        console.log('Edit tags')
+                      }}
+                      className="p-1 hover:bg-gray-100 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                      title="Edit tags"
+                    >
+                      <Pencil className="w-3 h-3 text-gray-500 hover:text-gray-700" />
+                    </button>
                   )}
                 </div>
+              ) : null}
+            </div>
 
-                {/* Stats and actions */}
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1">
-                      <LinkIcon className="w-5 h-5" />
-                      <span className="font-medium">{curation.tab_count}</span>
-                      <span className="text-sm">tabs</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Eye className="w-5 h-5" />
-                      <span className="font-medium">{curation.view_count}</span>
-                      <span className="text-sm">views</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Heart className={`w-5 h-5 ${curation.isLiked ? 'fill-current text-red-500' : ''}`} />
-                      <span className="font-medium">{curation.like_count}</span>
-                      <span className="text-sm">likes</span>
-                    </div>
-                    {curation.comments_enabled && (
-                      <div className="flex items-center gap-1">
-                        <MessageCircle className="w-5 h-5" />
-                        <span className="font-medium">{curation.comment_count}</span>
-                        <span className="text-sm">comments</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 ml-auto">
-                    {user && !isOwner && (
-                      <button
-                        onClick={handleLike}
-                        disabled={likeMutation.isPending || unlikeMutation.isPending}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                          curation.isLiked
-                            ? 'bg-red-500 text-white hover:bg-red-600'
-                            : curation.cover_image_url
-                            ? 'bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm'
-                            : 'bg-gradient-to-r from-pink-500 to-orange-500 text-white hover:from-pink-600 hover:to-orange-600'
-                        }`}
-                      >
-                        <Heart className={`w-4 h-4 inline mr-1 ${curation.isLiked ? 'fill-current' : ''}`} />
-                        {curation.isLiked ? 'Liked' : 'Like'}
-                      </button>
-                    )}
-
-                    <button
-                      onClick={handleShare}
-                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                        curation.cover_image_url
-                          ? 'bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      <Share2 className="w-4 h-4 inline mr-1" />
-                      Share
-                    </button>
-                  </div>
-                </div>
-
-                {/* Created date */}
-                <div className={`flex items-center gap-2 mt-4 text-sm ${curation.cover_image_url ? 'text-white/80' : 'text-gray-500'}`}>
-                  <Calendar className="w-4 h-4" />
-                  Created {new Date(curation.created_at).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </div>
+            {/* Stats Row - Compact */}
+            <div className="flex items-center gap-4 text-gray-600 text-sm mb-4">
+              <div className="flex items-center gap-1">
+                <LinkIcon className="w-4 h-4" />
+                <span className="font-semibold text-gray-900">{curation.tab_count}</span>
+                <span>tabs</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Eye className="w-4 h-4" />
+                <span className="font-semibold text-gray-900">{curation.view_count}</span>
+                <span>views</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Heart className={`w-4 h-4 ${curation.isLiked ? 'fill-current text-red-500' : ''}`} />
+                <span className="font-semibold text-gray-900">{curation.like_count}</span>
+                <span>likes</span>
+              </div>
+              <div className="flex items-center gap-1 text-gray-500">
+                <Calendar className="w-4 h-4" />
+                <span>Created {new Date(curation.created_at).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                })}</span>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Tabs Grid */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {curation.tabs && curation.tabs.length > 0 ? (
-          <>
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-gray-900">
-                Curated Tabs ({curation.tabs.length})
-              </h2>
-              
-              {isOwner && (
-                <button 
-                  onClick={() => setShowAddTab(true)}
-                  className="px-4 py-2 bg-gradient-to-r from-[#af0946] to-[#dc8c35] hover:from-[#31a9d6] hover:to-[#000d85] text-white rounded-lg transition-all duration-500 flex items-center gap-2 shadow-lg hover:shadow-xl hover:scale-105"
+            {/* Action Buttons with delete separated to far right */}
+            <div className="flex items-center justify-between">
+              {/* Left side: Main action buttons */}
+              <div className="flex items-center gap-3">
+                {/* Open All Tabs Button */}
+                {curation.tabs && curation.tabs.length > 0 && (
+                  <button 
+                    onClick={() => curation.tabs.forEach((tab: any) => window.open(tab.url, '_blank'))}
+                    className="px-4 py-2 bg-gradient-to-r from-[#af0946] to-[#dc8c35] hover:from-[#31a9d6] hover:to-[#000d85] text-white rounded-xl font-medium transition-all duration-500 shadow-md hover:shadow-lg hover:scale-105 flex items-center gap-2 text-sm"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Open All Tabs
+                  </button>
+                )}
+
+                {/* Like Button */}
+                {user && !isOwner && (
+                  <button
+                    onClick={handleLike}
+                    disabled={likeMutation.isPending || unlikeMutation.isPending}
+                    className={`px-3 py-2 rounded-xl font-medium transition-all duration-300 flex items-center gap-1.5 text-sm ${
+                      curation.isLiked
+                        ? 'bg-red-500 text-white hover:bg-red-600'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Heart className={`w-4 h-4 ${curation.isLiked ? 'fill-current' : ''}`} />
+                    {curation.isLiked ? 'Liked' : 'Like'}
+                  </button>
+                )}
+
+                {/* Share Button */}
+                <button
+                  onClick={handleShare}
+                  className="px-3 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-xl font-medium transition-all duration-300 flex items-center gap-1.5 text-sm"
                 >
-                  <Plus className="w-4 h-4" />
-                  Add Tab
+                  <Share2 className="w-4 h-4" />
+                  Share
+                </button>
+              </div>
+
+              {/* Right side: Delete button (creator only) */}
+              {canDelete && (
+                <button
+                  onClick={handleDelete}
+                  className="px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-xl font-medium transition-all duration-300 flex items-center gap-1.5 text-sm"
+                  title="Delete curation (creator only)"
+                >
+                  <Trash2 className="w-4 h-4" />
                 </button>
               )}
             </div>
-
-            <div className={`grid gap-6 ${
-              displayStyle === 'grid' 
-                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
-                : 'grid-cols-1 max-w-4xl'
-            }`}>
-              {curation.tabs.map((tab) => (
-                <TabCard 
-                  key={tab.id} 
-                  tab={tab} 
-                  personality={personality}
-                  onTabClick={(url) => handleTabClick(url, tab.id)}
-                />
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="text-center py-16">
-            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-orange-100 to-pink-100 rounded-full flex items-center justify-center">
-              <LinkIcon className="w-12 h-12 text-orange-400" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No tabs yet</h3>
-            <p className="text-gray-600 mb-6">This curation is waiting for its first digital gem.</p>
-            {isOwner && (
-              <button 
-                onClick={() => setShowAddTab(true)}
-                className="px-6 py-3 bg-gradient-to-r from-[#af0946] to-[#dc8c35] hover:from-[#31a9d6] hover:to-[#000d85] text-white rounded-2xl font-semibold transition-all duration-500 flex items-center gap-2 mx-auto shadow-lg hover:shadow-xl hover:scale-105"
-              >
-                <Plus className="w-5 h-5" />
-                Add Your First Tab
-              </button>
-            )}
           </div>
-        )}
+        </div>
+
+        {/* Tabs Section */}
+        <div>
+          {curation.tabs && curation.tabs.length > 0 ? (
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Tabs <span className="text-gray-500">({curation.tabs.length})</span>
+                </h2>
+                
+                {canEdit && (
+                  <button 
+                    onClick={() => setShowAddTab(true)}
+                    className="px-4 py-2 bg-gradient-to-r from-[#af0946] to-[#dc8c35] hover:from-[#31a9d6] hover:to-[#000d85] text-white rounded-xl font-medium transition-all duration-500 flex items-center gap-2 shadow-md hover:shadow-lg hover:scale-105 text-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Tab
+                  </button>
+                )}
+              </div>
+
+              <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                {curation.tabs.map((tab) => (
+                  <TabCard 
+                    key={tab.id} 
+                    tab={tab} 
+                    personality={personality}
+                    onTabClick={(url) => handleTabClick(url, tab.id)}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-orange-100 to-pink-100 rounded-full flex items-center justify-center">
+                <LinkIcon className="w-8 h-8 text-orange-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No tabs yet</h3>
+              <p className="text-gray-600 mb-4">This curation is waiting for its first digital gem.</p>
+              {canEdit && (
+                <button 
+                  onClick={() => setShowAddTab(true)}
+                  className="px-4 py-2 bg-gradient-to-r from-[#af0946] to-[#dc8c35] hover:from-[#31a9d6] hover:to-[#000d85] text-white rounded-xl font-medium transition-all duration-500 flex items-center gap-2 mx-auto shadow-md hover:shadow-lg hover:scale-105 text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Your First Tab
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Add Tab Modal */}
+      {/* Modals */}
       <AddTabModal
         isOpen={showAddTab}
         onClose={() => setShowAddTab(false)}
@@ -618,8 +686,8 @@ export default function CurationDetailPage() {
         isLoading={createTabMutation.isPending}
       />
 
-      {/* Floating Action Button - Add Tab variant for detail pages */}
-      {isOwner && (
+      {/* Floating Action Button - Edit Permission */}
+      {canEdit && (
         <FloatingActionButton 
           onClick={() => setShowAddTab(true)}
           variant="add"

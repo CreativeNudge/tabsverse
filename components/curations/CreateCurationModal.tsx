@@ -1,5 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Plus, RefreshCw, Sparkles, Search, ChevronDown, Check, AlertCircle, Upload, Image as ImageIcon, X } from 'lucide-react'
+import { useImageCompression } from '@/hooks/useImageCompression'
+import { uploadCurationImage } from '@/lib/services/image-upload'
+import { formatFileSize } from '@/lib/services/image-compression'
 
 // Tag limits for user experience
 const MAX_USER_TAGS = 6
@@ -328,7 +331,7 @@ function CategoryDropdown({
   )
 }
 
-export default function CreateCurationModalEnhanced({ 
+export default function CreateCurationModal({ 
   isOpen, 
   onClose, 
   onSubmit, 
@@ -344,6 +347,20 @@ export default function CreateCurationModalEnhanced({
     secondary_category: null,
     coverImageUrl: ''
   })
+
+  // Image compression and upload state
+  const { 
+    compressFile, 
+    compressionResult, 
+    isCompressing, 
+    error: compressionError,
+    previewUrl,
+    clearCompression,
+    getStats
+  } = useImageCompression()
+
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
   // Auto-generate tags when categories change
   useEffect(() => {
@@ -376,19 +393,50 @@ export default function CreateCurationModalEnhanced({
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      // For now, we'll use a placeholder URL until we implement actual image upload
-      // In production, this would upload to a service like Cloudinary or AWS S3
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          handleFormChange('coverImageUrl', event.target.result as string)
-        }
+    if (!file) return
+
+    setUploadError(null)
+
+    try {
+      // Step 1: Compress the image
+      const result = await compressFile(file)
+      if (!result) {
+        setUploadError('Image compression failed')
+        return
       }
-      reader.readAsDataURL(file)
+
+      // Step 2: Upload compressed image to storage
+      setIsUploading(true)
+      const uploadResult = await uploadCurationImage(result.compressedFile)
+      
+      if (uploadResult.success && uploadResult.url) {
+        // Step 3: Update form with uploaded image URL
+        handleFormChange('coverImageUrl', uploadResult.url)
+        
+        // Optional: Show success message with compression stats
+        const stats = getStats()
+        if (stats) {
+          console.log(`Image uploaded! Compressed from ${stats.originalSize} to ${stats.compressedSize} (${stats.savings} smaller)`)
+        }
+      } else {
+        setUploadError(uploadResult.error || 'Upload failed')
+      }
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'Upload failed')
+    } finally {
+      setIsUploading(false)
     }
+
+    // Clear the input so same file can be selected again
+    e.target.value = ''
+  }
+
+  const handleRemoveImage = () => {
+    handleFormChange('coverImageUrl', '')
+    clearCompression()
+    setUploadError(null)
   }
 
   const handleSubmit = async () => {
@@ -414,9 +462,14 @@ export default function CreateCurationModalEnhanced({
       secondary_category: null,
       coverImageUrl: ''
     })
+    clearCompression()
+    setUploadError(null)
   }
 
   if (!isOpen) return null
+
+  // Get compression stats for display
+  const compressionStats = getStats()
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -455,46 +508,109 @@ export default function CreateCurationModalEnhanced({
             />
           </div>
 
-          {/* Cover Image Upload */}
+          {/* Enhanced Cover Image Upload */}
           <div>
             <label className="block text-sm font-semibold text-stone-700 mb-2">
               Cover Image (Optional)
             </label>
             
             {formData.coverImageUrl ? (
-              // Image Preview
-              <div className="relative w-full h-32 rounded-2xl overflow-hidden border border-stone-200">
-                <img 
-                  src={formData.coverImageUrl} 
-                  alt="Cover preview" 
-                  className="w-full h-full object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleFormChange('coverImageUrl', '')}
-                  className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+              // Image Preview with Compression Stats
+              <div className="space-y-3">
+                <div className="relative w-full h-48 rounded-2xl overflow-hidden border border-stone-200 group">
+                  <img 
+                    src={formData.coverImageUrl} 
+                    alt="Cover preview" 
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Edit overlay */}
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
+                    >
+                      <X className="w-4 h-4" />
+                      Remove Image
+                    </button>
+                  </div>
+                </div>
+
+                {/* Compression Stats Display */}
+                {compressionStats && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+                    <div className="flex items-center gap-2 text-green-800 text-sm">
+                      <Sparkles className="w-4 h-4" />
+                      <span className="font-medium">Image Optimized!</span>
+                    </div>
+                    <div className="text-green-700 text-sm mt-1">
+                      Compressed from {compressionStats.originalSize} to {compressionStats.compressedSize} 
+                      <span className="font-medium"> ({compressionStats.savings} smaller)</span>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
-              // Upload Area
-              <label className="w-full h-32 border-2 border-dashed border-stone-300 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-orange-300 hover:bg-orange-50/30 transition-all">
-                <Upload className="w-6 h-6 text-stone-400 mb-2" />
-                <span className="text-sm text-stone-500 font-medium">Upload custom cover image</span>
-                <span className="text-xs text-stone-400 mt-1">Or we'll pick a beautiful one for you</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-              </label>
+              // Upload Area with Enhanced Feedback
+              <div className="space-y-3">
+                <label className={`w-full h-32 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all ${
+                  isCompressing || isUploading
+                    ? 'border-blue-300 bg-blue-50/30'
+                    : 'border-stone-300 hover:border-orange-300 hover:bg-orange-50/30'
+                }`}>
+                  {isCompressing || isUploading ? (
+                    <>
+                      <RefreshCw className="w-6 h-6 text-blue-500 mb-2 animate-spin" />
+                      <span className="text-sm text-blue-600 font-medium">
+                        {isCompressing ? 'Compressing image...' : 'Uploading image...'}
+                      </span>
+                      <span className="text-xs text-blue-500 mt-1">
+                        {isCompressing ? 'Optimizing to 600×600 square format' : 'Saving to secure storage'}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-6 h-6 text-stone-400 mb-2" />
+                      <span className="text-sm text-stone-500 font-medium">Upload custom cover image</span>
+                      <span className="text-xs text-stone-400 mt-1">
+                        JPG, PNG, WebP up to 10MB • Auto-resized to 600×600
+                      </span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    disabled={isCompressing || isUploading}
+                  />
+                </label>
+
+                {/* Error Display */}
+                {(compressionError || uploadError) && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                    <div className="flex items-center gap-2 text-red-800 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      <span className="font-medium">Upload Failed</span>
+                    </div>
+                    <div className="text-red-700 text-sm mt-1">
+                      {compressionError || uploadError}
+                    </div>
+                  </div>
+                )}
+
+                {/* Smart Auto-Selection Info */}
+                <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-3 border border-purple-100">
+                  <div className="flex items-center gap-2 text-purple-800 text-sm">
+                    <Sparkles className="w-4 h-4" />
+                    <span className="font-medium">Smart Auto-Selection</span>
+                  </div>
+                  <div className="text-purple-700 text-sm mt-1">
+                    Leave blank for automatic category-based image selection from our curated collection
+                  </div>
+                </div>
+              </div>
             )}
-            
-            <p className="text-xs text-stone-500 mt-2">
-              💡 Leave blank for smart auto-selection based on your category
-            </p>
           </div>
 
           {/* Category Selection */}
@@ -677,7 +793,7 @@ export default function CreateCurationModalEnhanced({
                 ? 'bg-gradient-to-r from-[#31a9d6] to-[#000d85] text-white scale-105' 
                 : 'bg-gradient-to-r from-[#af0946] to-[#dc8c35] hover:from-[#31a9d6] hover:to-[#000d85] text-white hover:scale-105'
             } shadow-lg hover:shadow-xl`}
-            disabled={isLoading}
+            disabled={isLoading || isCompressing || isUploading}
           >
             {isLoading ? (
               <>
