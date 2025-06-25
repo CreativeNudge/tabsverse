@@ -1,23 +1,34 @@
 # Database Schema Documentation
 
-## Version 2.3 - Complete Production Schema
+## Version 2.3 - Production Ready Schema
 **Last Updated:** June 25, 2025  
 **Status:** PRODUCTION ACTIVE - This reflects the ACTUAL current database state  
-**Authoritative Schema File:** `/supabase/CURRENT_SCHEMA_v2.3.sql`
+**Authoritative Schema File:** `/supabase/production-schema.sql`  
+**Storage Configuration:** `/supabase/storage-policies.sql`
 
 ---
 
-## ⚠️ CRITICAL: Schema Management Protocol
+## ⚠️ CRITICAL: Single Source of Truth
 
 **This documentation reflects the ACTUAL, CURRENT database schema.**  
-**The file `/supabase/CURRENT_SCHEMA_v2.3.sql` contains the complete, working schema.**
+**The files in `/supabase/` contain the complete, working schema.**
+
+### Clean File Structure
+```
+/supabase/
+├── production-schema.sql     ✅ Complete database schema
+├── storage-policies.sql      ✅ Image storage configuration
+├── README.md                 ✅ Maintenance instructions
+└── archived-temp-files/      📁 Old experimental files (ignore)
+```
 
 ### Before Making ANY Database Changes:
 1. **Read this documentation** to understand current state
-2. **Reference the working schema file** for exact implementation
-3. **Never create multiple "fix" files** - update the main schema file instead
-4. **Update this documentation** when changes are made
-5. **Test changes thoroughly** before considering them complete
+2. **Reference `/supabase/production-schema.sql`** for exact implementation
+3. **Test changes locally first** - Never experiment in production
+4. **Update the main schema file** - Don't create temporary "fix" files
+5. **Update this documentation** when changes are made
+6. **Test thoroughly** before considering changes complete
 
 ### Current Working State (June 25, 2025):
 ✅ **Tab creation works perfectly**  
@@ -26,6 +37,7 @@
 ✅ **User profiles auto-created** via auth trigger  
 ✅ **All social features functional**  
 ✅ **Analytics tracking active**  
+✅ **Image upload functional** (simple storage policies)  
 
 ---
 

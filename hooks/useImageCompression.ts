@@ -6,9 +6,9 @@
 
 import { useState, useCallback } from 'react'
 import { 
-  compressImage, 
+  compressCurationImage, 
   validateImageFile, 
-  getCompressionStats,
+  formatCompressionStats,
   type CompressionResult 
 } from '../lib/services/image-compression'
 
@@ -22,7 +22,7 @@ interface UseImageCompressionState {
 interface UseImageCompressionReturn extends UseImageCompressionState {
   compressFile: (file: File) => Promise<CompressionResult | null>
   clearCompression: () => void
-  getStats: () => ReturnType<typeof getCompressionStats> | null
+  getStats: () => ReturnType<typeof formatCompressionStats> | null
 }
 
 export function useImageCompression(): UseImageCompressionReturn {
@@ -36,7 +36,7 @@ export function useImageCompression(): UseImageCompressionReturn {
   const compressFile = useCallback(async (file: File): Promise<CompressionResult | null> => {
     // Validate file first
     const validation = validateImageFile(file)
-    if (!validation.isValid) {
+    if (!validation.valid) {
       setState(prev => ({
         ...prev,
         error: validation.error || 'Invalid file',
@@ -55,10 +55,21 @@ export function useImageCompression(): UseImageCompressionReturn {
 
     try {
       // Compress the image
-      const result = await compressImage(file)
+      const result = await compressCurationImage(file)
       
+      if (!result.success) {
+        setState(prev => ({
+          ...prev,
+          isCompressing: false,
+          error: result.error || 'Compression failed',
+          compressionResult: null,
+          previewUrl: null
+        }))
+        return null
+      }
+
       // Create preview URL
-      const previewUrl = URL.createObjectURL(result.compressedFile)
+      const previewUrl = result.compressedFile ? URL.createObjectURL(result.compressedFile) : null
 
       setState(prev => ({
         ...prev,
@@ -97,7 +108,7 @@ export function useImageCompression(): UseImageCompressionReturn {
 
   const getStats = useCallback(() => {
     if (!state.compressionResult) return null
-    return getCompressionStats(state.compressionResult)
+    return formatCompressionStats(state.compressionResult)
   }, [state.compressionResult])
 
   return {

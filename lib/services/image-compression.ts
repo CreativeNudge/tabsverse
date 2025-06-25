@@ -1,166 +1,217 @@
 /**
  * Image Compression Service for Tabsverse
- * Automatically compresses images to 600x600 square format
- * Targets 500KB max file size with quality optimization
- * Based on proven Orate implementation patterns
+ * Handles automatic compression to 600×600 square format
+ * Inspired by working Orate implementation
  */
 
 export interface CompressionResult {
-  compressedFile: File
+  success: boolean
+  compressedFile?: File
   originalSize: number
   compressedSize: number
-  savings: number // percentage savings
-  compressionRatio: number
+  savings: number // Percentage saved
+  error?: string
 }
 
-export interface CompressionOptions {
-  targetSize: number // target dimensions (600x600)
-  quality: number // initial quality (0.8)
-  maxFileSize: number // target file size in bytes (500KB)
-  format: 'jpeg' | 'webp'
-}
-
-const DEFAULT_OPTIONS: CompressionOptions = {
-  targetSize: 600,
-  quality: 0.8,
-  maxFileSize: 500 * 1024, // 500KB
-  format: 'jpeg'
+export interface CompressionStats {
+  originalSize: string
+  compressedSize: string
+  savings: string // Formatted percentage
 }
 
 /**
- * Validates uploaded image file
- */
-export function validateImageFile(file: File): { isValid: boolean; error?: string } {
-  // Check file type
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
-  if (!allowedTypes.includes(file.type)) {
-    return {
-      isValid: false,
-      error: 'Please upload a JPG, PNG, WebP, or GIF image'
-    }
-  }
-
-  // Check file size (10MB max for upload)
-  const maxUploadSize = 10 * 1024 * 1024 // 10MB
-  if (file.size > maxUploadSize) {
-    return {
-      isValid: false,
-      error: 'Image must be smaller than 10MB'
-    }
-  }
-
-  return { isValid: true }
-}
-
-/**
- * Compresses image to square format with size optimization
- */
-export async function compressImage(
-  file: File,
-  options: Partial<CompressionOptions> = {}
-): Promise<CompressionResult> {
-  const opts = { ...DEFAULT_OPTIONS, ...options }
-  
-  return new Promise((resolve, reject) => {
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    const img = new Image()
-
-    img.onload = () => {
-      try {
-        // Set canvas to square dimensions
-        canvas.width = opts.targetSize
-        canvas.height = opts.targetSize
-
-        // Calculate crop dimensions to center the image
-        const size = Math.min(img.width, img.height)
-        const x = (img.width - size) / 2
-        const y = (img.height - size) / 2
-
-        // Draw cropped and resized image
-        if (ctx) {
-          // Fill with white background (in case of transparency)
-          ctx.fillStyle = '#FFFFFF'
-          ctx.fillRect(0, 0, opts.targetSize, opts.targetSize)
-          
-          // Draw the image centered and cropped to square
-          ctx.drawImage(
-            img,
-            x, y, size, size, // source crop
-            0, 0, opts.targetSize, opts.targetSize // destination
-          )
-        }
-
-        // Convert to blob with quality optimization
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              reject(new Error('Failed to compress image'))
-              return
-            }
-
-            // If still too large, reduce quality iteratively
-            if (blob.size > opts.maxFileSize && opts.quality > 0.1) {
-              const newOptions = { ...opts, quality: opts.quality - 0.1 }
-              compressImage(file, newOptions).then(resolve).catch(reject)
-              return
-            }
-
-            // Create compressed file
-            const compressedFile = new File(
-              [blob],
-              file.name.replace(/\.[^/.]+$/, '.jpg'), // Always save as JPG
-              { type: 'image/jpeg' }
-            )
-
-            // Calculate savings
-            const savings = Math.round(((file.size - blob.size) / file.size) * 100)
-            const compressionRatio = Math.round((blob.size / file.size) * 100) / 100
-
-            resolve({
-              compressedFile,
-              originalSize: file.size,
-              compressedSize: blob.size,
-              savings,
-              compressionRatio
-            })
-          },
-          `image/${opts.format}`,
-          opts.quality
-        )
-      } catch (error) {
-        reject(new Error(`Compression failed: ${error}`))
-      }
-    }
-
-    img.onerror = () => {
-      reject(new Error('Failed to load image'))
-    }
-
-    // Load the image
-    img.src = URL.createObjectURL(file)
-  })
-}
-
-/**
- * Format file size for display
+ * Format file size in human readable format
  */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 Bytes'
+  
   const k = 1024
   const sizes = ['Bytes', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
+  
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
 /**
- * Get compression statistics for user display
+ * Validate image file before compression
  */
-export function getCompressionStats(result: CompressionResult) {
+export function validateImageFile(file: File): { valid: boolean; error?: string } {
+  // Check file type
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
+  if (!allowedTypes.includes(file.type)) {
+    return {
+      valid: false,
+      error: 'Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.'
+    }
+  }
+  
+  // Check file size (10MB limit)
+  const maxSize = 10 * 1024 * 1024 // 10MB
+  if (file.size > maxSize) {
+    return {
+      valid: false,
+      error: 'File too large. Maximum size is 10MB.'
+    }
+  }
+  
+  return { valid: true }
+}
+
+/**
+ * Compress image to 600×600 square format
+ * Centers and crops image to maintain aspect ratio
+ */
+export async function compressCurationImage(file: File): Promise<CompressionResult> {
+  const originalSize = file.size
+  
+  try {
+    // Validate file first
+    const validation = validateImageFile(file)
+    if (!validation.valid) {
+      return {
+        success: false,
+        originalSize,
+        compressedSize: 0,
+        savings: 0,
+        error: validation.error
+      }
+    }
+
+    return new Promise((resolve) => {
+      const img = new Image()
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      
+      if (!ctx) {
+        resolve({
+          success: false,
+          originalSize,
+          compressedSize: 0,
+          savings: 0,
+          error: 'Canvas not supported'
+        })
+        return
+      }
+
+      img.onload = () => {
+        // Set canvas to 600×600 square
+        canvas.width = 600
+        canvas.height = 600
+
+        // Calculate crop dimensions for center alignment
+        const { sx, sy, sWidth, sHeight } = calculateCropDimensions(
+          img.width,
+          img.height,
+          600,
+          600
+        )
+
+        // Draw cropped and scaled image
+        ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, 600, 600)
+
+        // Convert to blob with progressive quality reduction
+        let quality = 0.8 // Start with 80% quality
+        const targetSize = 500 * 1024 // Target 500KB
+
+        const tryCompress = (currentQuality: number) => {
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              resolve({
+                success: false,
+                originalSize,
+                compressedSize: 0,
+                savings: 0,
+                error: 'Compression failed'
+              })
+              return
+            }
+
+            // If size is acceptable or quality is too low, accept result
+            if (blob.size <= targetSize || currentQuality <= 0.3) {
+              const compressedSize = blob.size
+              const savings = ((originalSize - compressedSize) / originalSize) * 100
+              
+              // Create compressed file
+              const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+                type: 'image/jpeg'
+              })
+
+              resolve({
+                success: true,
+                compressedFile,
+                originalSize,
+                compressedSize,
+                savings: Math.max(0, savings)
+              })
+            } else {
+              // Try with lower quality
+              tryCompress(currentQuality - 0.1)
+            }
+          }, 'image/jpeg', currentQuality)
+        }
+
+        tryCompress(quality)
+      }
+
+      img.onerror = () => {
+        resolve({
+          success: false,
+          originalSize,
+          compressedSize: 0,
+          savings: 0,
+          error: 'Failed to load image'
+        })
+      }
+
+      // Load image
+      img.src = URL.createObjectURL(file)
+    })
+
+  } catch (error) {
+    return {
+      success: false,
+      originalSize,
+      compressedSize: 0,
+      savings: 0,
+      error: error instanceof Error ? error.message : 'Unknown compression error'
+    }
+  }
+}
+
+/**
+ * Calculate crop dimensions for center-aligned square crop
+ */
+function calculateCropDimensions(
+  imageWidth: number,
+  imageHeight: number,
+  targetWidth: number,
+  targetHeight: number
+) {
+  const imageAspect = imageWidth / imageHeight
+  const targetAspect = targetWidth / targetHeight
+
+  let sx = 0, sy = 0, sWidth = imageWidth, sHeight = imageHeight
+
+  if (imageAspect > targetAspect) {
+    // Image is wider than target - crop width
+    sWidth = imageHeight * targetAspect
+    sx = (imageWidth - sWidth) / 2
+  } else {
+    // Image is taller than target - crop height
+    sHeight = imageWidth / targetAspect
+    sy = (imageHeight - sHeight) / 2
+  }
+
+  return { sx, sy, sWidth, sHeight }
+}
+
+/**
+ * Format compression result for user display
+ */
+export function formatCompressionStats(result: CompressionResult): CompressionStats {
   return {
     originalSize: formatFileSize(result.originalSize),
     compressedSize: formatFileSize(result.compressedSize),
-    savings: `${result.savings}%`,
-    savingsAmount: formatFileSize(result.originalSize - result.compressedSize)
+    savings: `${result.savings.toFixed(1)}%`
   }
 }

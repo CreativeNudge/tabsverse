@@ -106,7 +106,8 @@ export default function DashboardLayout({
         visibility: formData.visibility,
         tags: formData.tags,
         primary_category: formData.primary_category,
-        secondary_category: formData.secondary_category || null
+        secondary_category: formData.secondary_category || null,
+        coverImageUrl: formData.coverImageUrl
       })
       
       setShowCreateModal(false)

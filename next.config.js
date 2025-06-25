@@ -2,6 +2,20 @@
 const nextConfig = {
   images: {
     domains: ['localhost', 'tabsverse.com', 'images.unsplash.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'qfkkywpzpklimtgdyyxi.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
     unoptimized: process.env.NODE_ENV === 'development'
   },
   experimental: {

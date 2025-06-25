@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, RefreshCw, Sparkles, Search, ChevronDown, Check, AlertCircle, Upload, Image as ImageIcon, X } from 'lucide-react'
+import Image from 'next/image'
+import { Plus, RefreshCw, Sparkles, Search, ChevronDown, Check, AlertCircle, Upload, Image as ImageIcon, X, Lock, Globe } from 'lucide-react'
 import { useImageCompression } from '@/hooks/useImageCompression'
-import { uploadCurationImage } from '@/lib/services/image-upload'
+import { uploadCurationImage } from '@/lib/services/enhanced-image-upload'
 import { formatFileSize } from '@/lib/services/image-compression'
 
 // Tag limits for user experience
@@ -375,7 +376,7 @@ export default function CreateCurationModal({
         }))
       }
     }
-  }, [formData.primary_category, formData.secondary_category])
+  }, [formData.primary_category, formData.secondary_category, formData.tags])
 
   // Parse and validate tags
   const parsedTags = useMemo(() => {
@@ -402,12 +403,12 @@ export default function CreateCurationModal({
     try {
       // Step 1: Compress the image
       const result = await compressFile(file)
-      if (!result) {
+      if (!result || !result.compressedFile) {
         setUploadError('Image compression failed')
         return
       }
 
-      // Step 2: Upload compressed image to storage
+      // Step 2: Upload compressed image to storage (simplified)
       setIsUploading(true)
       const uploadResult = await uploadCurationImage(result.compressedFile)
       
@@ -475,7 +476,7 @@ export default function CreateCurationModal({
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col animate-fade-in">
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-stone-50 to-amber-50/30 px-8 py-6 border-b border-stone-200 flex-shrink-0">
+        <div className="bg-gradient-to-r from-stone-50 to-amber-50/30 px-8 py-6 border-b border-stone-200 flex-shrink-0 rounded-t-3xl">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-serif font-bold text-stone-800">Create Curation</h2>
@@ -518,10 +519,12 @@ export default function CreateCurationModal({
               // Image Preview with Compression Stats
               <div className="space-y-3">
                 <div className="relative w-full h-48 rounded-2xl overflow-hidden border border-stone-200 group">
-                  <img 
+                  <Image 
                     src={formData.coverImageUrl} 
                     alt="Cover preview" 
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 400px"
                   />
                   {/* Edit overlay */}
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -573,7 +576,7 @@ export default function CreateCurationModal({
                       <Upload className="w-6 h-6 text-stone-400 mb-2" />
                       <span className="text-sm text-stone-500 font-medium">Upload custom cover image</span>
                       <span className="text-xs text-stone-400 mt-1">
-                        JPG, PNG, WebP up to 10MB • Auto-resized to 600×600
+                        Leave blank for automatic category-based image selection from our curated collection
                       </span>
                     </>
                   )}
@@ -599,16 +602,7 @@ export default function CreateCurationModal({
                   </div>
                 )}
 
-                {/* Smart Auto-Selection Info */}
-                <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-3 border border-purple-100">
-                  <div className="flex items-center gap-2 text-purple-800 text-sm">
-                    <Sparkles className="w-4 h-4" />
-                    <span className="font-medium">Smart Auto-Selection</span>
-                  </div>
-                  <div className="text-purple-700 text-sm mt-1">
-                    Leave blank for automatic category-based image selection from our curated collection
-                  </div>
-                </div>
+
               </div>
             )}
           </div>
@@ -632,39 +626,7 @@ export default function CreateCurationModal({
             />
           </div>
 
-          {/* Auto-Tags Preview */}
-          {formData.primary_category && (
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-100">
-              <div className="flex items-start gap-3">
-                <Sparkles className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-green-800 font-medium text-sm">Smart Tags Added</p>
-                  <p className="text-green-700 text-sm mt-1">
-                    We've automatically added relevant tags based on your categories. Feel free to customize them below!
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
 
-          {/* Category Preview */}
-          {(formData.primary_category || formData.secondary_category) && (
-            <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-4 border border-orange-100">
-              <div className="flex items-start gap-3">
-                <Sparkles className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-orange-800 font-medium text-sm">Discovery Preview</p>
-                  <p className="text-orange-700 text-sm mt-1">
-                    This collection will appear in 
-                    <span className="font-semibold"> {categories.find(c => c.id === formData.primary_category)?.label}</span>
-                    {formData.secondary_category && (
-                      <span> and <span className="font-semibold">{categories.find(c => c.id === formData.secondary_category)?.label}</span> (reduced ranking)</span>
-                    )} discovery feeds.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Description */}
           <div>
@@ -688,24 +650,26 @@ export default function CreateCurationModal({
                 <button 
                   type="button"
                   onClick={() => handleFormChange('visibility', 'private')}
-                  className={`flex-1 px-4 py-2 rounded-xl font-medium transition-all ${
+                  className={`flex-1 px-4 py-2 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
                     formData.visibility === 'private' 
-                      ? 'bg-white shadow-sm text-stone-700' 
-                      : 'text-stone-600 hover:text-stone-700'
+                      ? 'bg-orange-100 text-orange-700 border border-orange-200' 
+                      : 'text-stone-600 hover:text-stone-700 hover:bg-stone-50'
                   }`}
                 >
-                  🔒 Private
+                  <Lock className="w-4 h-4" />
+                  Private
                 </button>
                 <button 
                   type="button"
                   onClick={() => handleFormChange('visibility', 'public')}
-                  className={`flex-1 px-4 py-2 rounded-xl font-medium transition-all ${
+                  className={`flex-1 px-4 py-2 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
                     formData.visibility === 'public' 
-                      ? 'bg-white shadow-sm text-stone-700' 
-                      : 'text-stone-600 hover:text-stone-700'
+                      ? 'bg-orange-100 text-orange-700 border border-orange-200' 
+                      : 'text-stone-600 hover:text-stone-700 hover:bg-stone-50'
                   }`}
                 >
-                  🌍 Public
+                  <Globe className="w-4 h-4" />
+                  Public
                 </button>
               </div>
             </div>
@@ -762,23 +726,10 @@ export default function CreateCurationModal({
               )}
             </div>
           </div>
-
-          {/* Pro Tip */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-100">
-            <div className="flex items-start gap-3">
-              <Sparkles className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-blue-800 font-medium text-sm">Smart Auto-Tagging</p>
-                <p className="text-blue-700 text-sm mt-1">
-                  After you add 3+ tabs, we'll automatically suggest additional relevant tags based on the content you're curating!
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Modal Footer */}
-        <div className="bg-stone-50 px-8 py-6 border-t border-stone-200 flex items-center justify-between flex-shrink-0">
+        <div className="bg-stone-50 px-8 py-6 border-t border-stone-200 flex items-center justify-between flex-shrink-0 rounded-b-3xl">
           <button 
             onClick={onClose}
             className="px-6 py-3 text-stone-600 hover:text-stone-800 font-medium transition-colors"
