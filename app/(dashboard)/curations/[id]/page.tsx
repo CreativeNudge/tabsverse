@@ -31,6 +31,7 @@ import { useGroup, useLikeGroup, useUnlikeGroup, useDeleteGroup } from '@/lib/ho
 import { useCreateTab, useTrackTabClick } from '@/lib/hooks/useTabs'
 import { useAuth } from '@/lib/hooks/useAuth'
 import AddTabModal from '@/components/curations/AddTabModal'
+import FloatingActionButton from '@/components/dashboard/FloatingActionButton'
 
 // Resource type icons
 const getResourceIcon = (type: string) => {
@@ -426,7 +427,7 @@ export default function CurationDetailPage() {
                     <div className="flex items-center gap-1">
                       <LinkIcon className="w-5 h-5" />
                       <span className="font-medium">{curation.tab_count}</span>
-                      <span className="text-sm">links</span>
+                      <span className="text-sm">tabs</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Eye className="w-5 h-5" />
@@ -495,21 +496,21 @@ export default function CurationDetailPage() {
       </div>
 
       {/* Tabs Grid */}
-      <div className="max-w-7xl mx-auto px-6 py-12">
+      <div className="max-w-7xl mx-auto px-6 py-8">
         {curation.tabs && curation.tabs.length > 0 ? (
           <>
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-bold text-gray-900">
-                Curated Links ({curation.tabs.length})
+                Curated Tabs ({curation.tabs.length})
               </h2>
               
               {isOwner && (
                 <button 
                   onClick={() => setShowAddTab(true)}
-                  className="px-4 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:from-pink-600 hover:to-orange-600 transition-all duration-300 flex items-center gap-2"
+                  className="px-4 py-2 bg-gradient-to-r from-[#af0946] to-[#dc8c35] hover:from-[#31a9d6] hover:to-[#000d85] text-white rounded-lg transition-all duration-500 flex items-center gap-2 shadow-lg hover:shadow-xl hover:scale-105"
                 >
                   <Plus className="w-4 h-4" />
-                  Add Link
+                  Add Tab
                 </button>
               )}
             </div>
@@ -534,15 +535,15 @@ export default function CurationDetailPage() {
             <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-orange-100 to-pink-100 rounded-full flex items-center justify-center">
               <LinkIcon className="w-12 h-12 text-orange-400" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No links yet</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No tabs yet</h3>
             <p className="text-gray-600 mb-6">This curation is waiting for its first digital gem.</p>
             {isOwner && (
               <button 
                 onClick={() => setShowAddTab(true)}
-                className="px-6 py-3 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:from-pink-600 hover:to-orange-600 transition-all duration-300 flex items-center gap-2 mx-auto"
+                className="px-6 py-3 bg-gradient-to-r from-[#af0946] to-[#dc8c35] hover:from-[#31a9d6] hover:to-[#000d85] text-white rounded-2xl font-semibold transition-all duration-500 flex items-center gap-2 mx-auto shadow-lg hover:shadow-xl hover:scale-105"
               >
                 <Plus className="w-5 h-5" />
-                Add Your First Link
+                Add Your First Tab
               </button>
             )}
           </div>
@@ -556,6 +557,15 @@ export default function CurationDetailPage() {
         onAdd={handleAddTab}
         isLoading={createTabMutation.isPending}
       />
+
+      {/* Floating Action Button - Add Tab variant for detail pages */}
+      {isOwner && (
+        <FloatingActionButton 
+          onClick={() => setShowAddTab(true)}
+          variant="add"
+          tooltipText="Add Tab"
+        />
+      )}
     </div>
   )
 }

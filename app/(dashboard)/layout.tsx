@@ -162,8 +162,10 @@ export default function DashboardLayout({
           onRefresh={() => {/* React Query handles this automatically */}} 
         />
         
-        {/* Universal Floating Action Button */}
-        <FloatingActionButton onClick={() => setShowCreateModal(true)} />
+        {/* Universal Floating Action Button - only show on non-detail pages */}
+        {!pathname.includes('/curations/') && (
+          <FloatingActionButton onClick={() => setShowCreateModal(true)} />
+        )}
 
         {/* Universal Create Curation Modal */}
         <CreateCurationModal 

@@ -74,7 +74,7 @@ export default function CreateCurationModal({
         <div className="bg-gradient-to-r from-stone-50 to-amber-50/30 px-8 py-6 border-b border-stone-200 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-serif font-bold text-stone-800">Create New Curation</h2>
+              <h2 className="text-2xl font-serif font-bold text-stone-800">Create Curation</h2>
               <p className="text-stone-600 mt-1">Start curating your digital discoveries ({limitInfo.remaining} remaining)</p>
             </div>
             <button 
