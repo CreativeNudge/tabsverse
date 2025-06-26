@@ -18,6 +18,9 @@ interface AddTabModalProps {
     resource_type: string
     tags: string[]
     notes?: string
+    thumbnail_url?: string
+    favicon_url?: string
+    metadata?: any
   }) => Promise<void>
   isLoading?: boolean
 }
@@ -143,7 +146,16 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
         description: formData.description.trim() || undefined,
         resource_type: formData.resource_type,
         tags: parsedTags, // Use validated parsed tags
-        notes: formData.notes.trim() || undefined
+        notes: formData.notes.trim() || undefined,
+        // Pass image data from metadata for tab cards
+        thumbnail_url: metadata?.thumbnail || undefined,
+        favicon_url: metadata?.favicon || undefined,
+        // Save metadata for future reference
+        metadata: metadata ? {
+          confidence: metadata.confidence,
+          domain: metadata.domain,
+          extractedAt: new Date().toISOString()
+        } : undefined
       })
       
       // Reset form

@@ -1,3 +1,4 @@
+// Enhanced metadata API with screenshot fallback
 import { NextRequest, NextResponse } from 'next/server'
 
 interface MetadataResponse {
@@ -6,6 +7,94 @@ interface MetadataResponse {
   image?: string | null
   favicon?: string
   error?: string
+  imageSource?: 'og-image' | 'twitter-image' | 'screenshot' | 'social-placeholder'
+}
+
+// Social platforms that block automated access
+const BLOCKED_SOCIAL_PLATFORMS: Record<string, {
+  name: string
+  placeholder: string
+  color: string
+  icon?: string // Built-in icon for known platforms
+}> = {
+  'instagram.com': {
+    name: 'Instagram',
+    placeholder: '/images/social-placeholders/instagram-placeholder.jpg',
+    color: '#E4405F',
+    icon: '📸' // Instagram camera emoji or we can use a proper icon
+  },
+  'facebook.com': {
+    name: 'Facebook', 
+    placeholder: '/images/social-placeholders/facebook-placeholder.jpg',
+    color: '#1877F2',
+    icon: '👥' // Facebook people emoji
+  },
+  'twitter.com': {
+    name: 'Twitter',
+    placeholder: '/images/social-placeholders/twitter-placeholder.jpg', 
+    color: '#000000',
+    icon: '🐦' // Twitter bird
+  },
+  'x.com': {
+    name: 'X',
+    placeholder: '/images/social-placeholders/x-placeholder.jpg',
+    color: '#000000',
+    icon: '✕' // X symbol
+  }
+}
+
+// Check if domain is a blocked social platform
+function getBlockedSocialPlatform(url: string) {
+  try {
+    const domain = new URL(url).hostname.replace('www.', '')
+    return BLOCKED_SOCIAL_PLATFORMS[domain] || null
+  } catch {
+    return null
+  }
+}
+
+// Generate screenshot using htmlcsstoimage.com
+async function generateScreenshot(url: string): Promise<string | null> {
+  // Only generate screenshots if API key is configured
+  if (!process.env.HTMLCSSTOIMAGE_API_KEY) {
+    console.log('Screenshot API key not configured, skipping screenshot generation')
+    return null
+  }
+
+  try {
+    const response = await fetch('https://hcti.io/v1/image', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.HTMLCSSTOIMAGE_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        url: url,
+        device_scale: 2, // High-DPI for crisp images
+        viewport_width: 1280,
+        viewport_height: 720,
+        ms_delay: 3000, // Wait for page load
+        selector: 'body', // Full page
+        css: `
+          .cookie-banner, .popup, .modal, .overlay,
+          [class*="cookie"], [class*="popup"], [class*="modal"] {
+            display: none !important;
+          }
+        ` // Hide common distractions
+      })
+    })
+    
+    if (!response.ok) {
+      console.warn('Screenshot generation failed:', response.status)
+      return null
+    }
+    
+    const data = await response.json()
+    return data.url // Returns CDN URL of screenshot
+  } catch (error) {
+    console.warn('Screenshot generation error:', error)
+    return null
+  }
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<MetadataResponse>> {
@@ -14,6 +103,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<MetadataR
     
     if (!url) {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 })
+    }
+    
+    // Check if this is a blocked social platform
+    const socialPlatform = getBlockedSocialPlatform(url)
+    if (socialPlatform) {
+      return NextResponse.json({
+        title: extractTitleFromUrl(url),
+        description: `Content from ${socialPlatform.name}`,
+        image: socialPlatform.placeholder,
+        favicon: `${new URL(url).origin}/favicon.ico`,
+        imageSource: 'social-placeholder'
+      })
     }
     
     // Validate URL
@@ -59,6 +160,24 @@ export async function POST(request: NextRequest): Promise<NextResponse<MetadataR
       description: extractDescription(html),
       image: extractImage(html, validUrl.origin),
       favicon: extractFavicon(html, validUrl.origin)
+    }
+    
+    // Set image source based on what we found
+    if (metadata.image) {
+      if (html.includes('property="og:image"')) {
+        metadata.imageSource = 'og-image'
+      } else if (html.includes('name="twitter:image"')) {
+        metadata.imageSource = 'twitter-image'
+      }
+    }
+    
+    // If no image found, try screenshot generation
+    if (!metadata.image) {
+      const screenshotUrl = await generateScreenshot(url)
+      if (screenshotUrl) {
+        metadata.image = screenshotUrl
+        metadata.imageSource = 'screenshot'
+      }
     }
     
     return NextResponse.json(metadata)

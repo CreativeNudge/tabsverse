@@ -84,6 +84,38 @@ const getCoverImageUrl = (curation: any) => {
   return curation.cover_image_url || generateSmartCoverImage(curation.primary_category, curation.id)
 }
 
+// Get enhanced domain name (remove common prefixes)
+const getCleanDomainName = (domain: string) => {
+  return domain
+    .replace(/^www\./i, '')
+    .replace(/^m\./i, '')
+    .replace(/^mobile\./i, '')
+    .split('.')[0]
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, l => l.toUpperCase())
+}
+
+// Known platform icons for TRULY broken cases only (use Lucide icons)
+const FALLBACK_PLATFORM_ICONS: Record<string, string> = {
+  'instagram.com': 'Instagram', // We'll use Lucide Camera icon
+  'facebook.com': 'Facebook',   // We'll use Lucide Users icon  
+  'twitter.com': 'Twitter',     // We'll use Lucide Bird icon
+  'x.com': 'X'                  // We'll use Lucide X icon
+}
+
+// Get platform name for truly broken favicons
+const getPlatformName = (domain: string) => {
+  const cleanDomain = domain.replace(/^www\./i, '')
+  return FALLBACK_PLATFORM_ICONS[cleanDomain] || null
+}
+
+// Check if favicon URL is ACTUALLY broken (be very permissive)
+const isFaviconActuallyBroken = (faviconUrl: string | null) => {
+  // Only return true if there's no favicon URL at all
+  // Let the browser handle broken favicon URLs through the onError handler
+  return !faviconUrl
+}
+
 // Tab card component
 function TabCard({ tab, personality, onTabClick }: { 
   tab: any
@@ -112,8 +144,41 @@ function TabCard({ tab, personality, onTabClick }: {
             className="object-cover transition-transform duration-700 group-hover:scale-110"
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-orange-100 to-pink-100 flex items-center justify-center">
-            <ResourceIcon className="w-12 h-12 text-orange-400" />
+          <div className="w-full h-full bg-gradient-to-br from-orange-100 to-pink-100 flex flex-col items-center justify-center text-center p-4">
+            {/* Enhanced fallback with favicon + domain */}
+            <div className="flex flex-col items-center gap-3">
+              {/* Always try to use favicon first, only fallback to icon if truly broken */}
+              {tab.favicon_url && !isFaviconActuallyBroken(tab.favicon_url) ? (
+                <div className="w-12 h-12 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                  <Image
+                    src={tab.favicon_url}
+                    alt=""
+                    width={24}
+                    height={24}
+                    className="rounded"
+                    onError={(e) => {
+                      // On error, replace with Globe icon, not hide
+                      const parent = e.currentTarget.parentElement
+                      if (parent) {
+                        parent.innerHTML = '<div class="w-6 h-6 text-orange-600"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg></div>'
+                      }
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                  <Globe className="w-6 h-6 text-orange-600" />
+                </div>
+              )}
+              
+              {/* Clean domain name */}
+              <div className="text-orange-700 font-medium text-sm">
+                {getCleanDomainName(tab.domain)}
+              </div>
+              
+              {/* Resource type icon as small indicator */}
+              <ResourceIcon className="w-6 h-6 text-orange-400" />
+            </div>
           </div>
         )}
         
@@ -133,18 +198,29 @@ function TabCard({ tab, personality, onTabClick }: {
 
       {/* Content */}
       <div className="p-6">
-        {/* Domain and favicon */}
+        {/* Domain and favicon - keep original favicon unless truly broken */}
         <div className="flex items-center gap-2 mb-2">
-          {tab.favicon_url && (
+          {/* Conservative favicon display - keep working favicons */}
+          {tab.favicon_url && !isFaviconActuallyBroken(tab.favicon_url) ? (
             <Image
               src={tab.favicon_url}
               alt=""
               width={16}
               height={16}
               className="rounded"
+              onError={(e) => {
+                // On error, replace with Globe icon
+                const parent = e.currentTarget.parentElement
+                if (parent) {
+                  parent.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-gray-500"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>'
+                }
+              }}
             />
+          ) : (
+            <Globe className="w-4 h-4 text-gray-500" />
           )}
-          <span className="text-sm text-gray-500">{tab.domain}</span>
+          
+          <span className="text-sm text-gray-500">{getCleanDomainName(tab.domain)}</span>
           <div className="flex items-center gap-1 text-xs text-gray-400 ml-auto">
             <Eye className="w-3 h-3" />
             {tab.click_count}
@@ -331,6 +407,9 @@ export default function CurationDetailPage() {
     resource_type: string
     tags: string[]
     notes?: string
+    thumbnail_url?: string
+    favicon_url?: string
+    metadata?: any
   }) => {
     await createTabMutation.mutateAsync(tabData)
   }
