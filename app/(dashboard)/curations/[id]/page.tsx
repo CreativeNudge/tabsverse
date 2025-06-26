@@ -27,7 +27,8 @@ import {
   Folder,
   ImageIcon,
   Pencil,
-  Lock
+  Lock,
+  Edit3
 } from 'lucide-react'
 import { useGroup, useLikeGroup, useUnlikeGroup, useDeleteGroup, useUpdateGroup } from '@/lib/hooks/useGroups'
 import { useCreateTab, useTrackTabClick } from '@/lib/hooks/useTabs'
@@ -117,21 +118,45 @@ const isFaviconActuallyBroken = (faviconUrl: string | null) => {
 }
 
 // Tab card component
-function TabCard({ tab, personality, onTabClick }: { 
+function TabCard({ tab, personality, onTabClick, canEdit, onTabDelete }: { 
   tab: any
   personality: string
-  onTabClick: (url: string) => void 
+  onTabClick: (url: string) => void
+  canEdit: boolean
+  onTabDelete: (tab: any) => void // Changed to pass the whole tab object
 }) {
   const ResourceIcon = getResourceIcon(tab.resource_type)
+  // Removed useDeleteConfirmation from individual tab cards
 
   const handleClick = () => {
     onTabClick(tab.url)
     window.open(tab.url, '_blank', 'noopener,noreferrer')
   }
 
+  const handleDelete = (e: React.MouseEvent) => {
+    e.preventDefault() // Prevent tab opening
+    e.stopPropagation()
+    // Call parent handler instead of opening modal directly
+    onTabDelete(tab)
+  }
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // TODO: Implement tab share functionality
+    console.log('Tab share functionality coming soon!')
+  }
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // TODO: Implement tab edit functionality
+    console.log('Tab edit functionality coming soon!')
+  }
+
   return (
     <div 
-      className={`group bg-white/80 backdrop-blur-xl rounded-2xl border border-orange-100/50 hover:border-orange-200/50 transition-all duration-700 hover:shadow-2xl hover:shadow-orange-100/20 cursor-pointer ${getPersonalityStyles(personality)}`}
+      className={`group bg-white/80 backdrop-blur-xl rounded-2xl border border-orange-100/50 hover:border-orange-200/50 transition-all duration-700 hover:shadow-2xl hover:shadow-orange-100/20 cursor-pointer flex flex-col ${getPersonalityStyles(personality)}`}
       onClick={handleClick}
     >
       {/* Thumbnail */}
@@ -197,7 +222,7 @@ function TabCard({ tab, personality, onTabClick }: {
       </div>
 
       {/* Content */}
-      <div className="p-6">
+      <div className="p-6 flex flex-col flex-1">
         {/* Domain and favicon - keep original favicon unless truly broken */}
         <div className="flex items-center gap-2 mb-2">
           {/* Conservative favicon display - keep working favicons */}
@@ -257,7 +282,42 @@ function TabCard({ tab, personality, onTabClick }: {
             )}
           </div>
         )}
+
+        {/* Action Icons Row - Only visible to owners/editors on hover */}
+        {canEdit && (
+          <div className="flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all duration-300 mt-auto pt-2 border-t border-gray-100">
+            {/* Left side - Share and Edit */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleShare}
+                className="w-7 h-7 rounded-lg bg-stone-50 hover:bg-stone-100 flex items-center justify-center transition-all duration-200 group/share"
+                title="Share Tab (Coming Soon)"
+              >
+                <Share2 className="w-3.5 h-3.5 text-stone-400 group-hover/share:text-stone-500 transition-colors" />
+              </button>
+
+              <button
+                onClick={handleEdit}
+                className="w-7 h-7 rounded-lg bg-stone-50 hover:bg-stone-100 flex items-center justify-center transition-all duration-200 group/edit"
+                title="Edit Tab (Coming Soon)"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-stone-400 group-hover/edit:text-stone-500 transition-colors" />
+              </button>
+            </div>
+
+            {/* Right side - Delete */}
+            <button
+              onClick={handleDelete}
+              className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center transition-all duration-200 group/delete hover:scale-105"
+              title="Delete Tab"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-500 group-hover/delete:text-red-600 transition-colors" />
+            </button>
+          </div>
+        )}
       </div>
+      
+      {/* No individual DeleteModal - handled at page level */}
     </div>
   )
 }
@@ -398,6 +458,33 @@ export default function CurationDetailPage() {
 
   const handleTabClick = async (url: string, tabId: string) => {
     trackClickMutation.mutate(tabId)
+  }
+
+  const handleTabDelete = (tab: any) => {
+    openDeleteModal({
+      type: 'tab',
+      itemName: tab.title,
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/curations/${tab.group_id}/tabs/${tab.id}`, {
+            method: 'DELETE',
+          })
+
+          if (!response.ok) {
+            const error = await response.json()
+            throw new Error(error.error || 'Failed to delete tab')
+          }
+
+          // Success - refresh the page to update tab list
+          window.location.reload()
+          
+        } catch (error) {
+          console.error('Delete failed:', error)
+          alert('Failed to delete tab. Please try again.')
+          throw error // Re-throw to keep modal open
+        }
+      }
+    })
   }
 
   const handleAddTab = async (tabData: {
@@ -711,6 +798,8 @@ export default function CurationDetailPage() {
                     tab={tab} 
                     personality={personality}
                     onTabClick={(url) => handleTabClick(url, tab.id)}
+                    canEdit={canEdit}
+                    onTabDelete={handleTabDelete}
                   />
                 ))}
               </div>
