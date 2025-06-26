@@ -52,6 +52,7 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
   // UI state
   const [simpleMode, setSimpleMode] = useState(true)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [titleManuallyEdited, setTitleManuallyEdited] = useState(false)
 
   // Parse and validate tags
   const parsedTags = useMemo(() => {
@@ -67,9 +68,32 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
 
   // Auto-fetch metadata when URL changes (with debouncing)
   useEffect(() => {
+    // Always clear metadata when URL changes
+    setMetadata(null)
+    setMetadataError(null)
+    
+    // Reset manual editing flag if the domain changes significantly
+    const currentDomain = (() => {
+      try {
+        return new URL(formData.url).hostname
+      } catch {
+        return ''
+      }
+    })()
+    
+    const previousDomain = (() => {
+      try {
+        return metadata ? new URL(metadata.domain).hostname : ''
+      } catch {
+        return metadata?.domain || ''
+      }
+    })()
+    
+    if (currentDomain && previousDomain && currentDomain !== previousDomain) {
+      setTitleManuallyEdited(false)
+    }
+    
     if (!formData.url) {
-      setMetadata(null)
-      setMetadataError(null)
       return
     }
 
@@ -79,8 +103,6 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
       new URL(formData.url)
       isValidUrl = true
     } catch {
-      setMetadata(null)
-      setMetadataError(null)
       return
     }
 
@@ -95,13 +117,17 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
         const urlMetadata = await fetchUrlMetadata(formData.url)
         setMetadata(urlMetadata)
         
-        // Auto-populate form if fields are empty
+        // Auto-populate form fields ONLY if they are still empty or match previous auto-filled values
         setFormData(prev => ({
           ...prev,
-          title: prev.title || urlMetadata.title,
-          description: prev.description || urlMetadata.description,
-          resource_type: prev.resource_type === 'webpage' ? urlMetadata.resourceType : prev.resource_type,
-          tags: prev.tags || urlMetadata.suggestedTags.join(', ')
+          // Only update title if it hasn't been manually edited
+          title: !titleManuallyEdited && (!prev.title || prev.title === metadata?.title) ? urlMetadata.title : prev.title,
+          // Only update description if it's empty or matches old metadata
+          description: !prev.description || prev.description === metadata?.description ? urlMetadata.description : prev.description,
+          // Reset resource type to detected type if it was auto-detected before
+          resource_type: prev.resource_type === metadata?.resourceType || prev.resource_type === 'webpage' ? urlMetadata.resourceType : prev.resource_type,
+          // Only update tags if they're empty or match old auto-suggested tags
+          tags: !prev.tags || prev.tags === metadata?.suggestedTags.join(', ') ? urlMetadata.suggestedTags.join(', ') : prev.tags
         }))
       } catch (error) {
         setMetadataError(error instanceof Error ? error.message : 'Failed to fetch metadata')
@@ -111,7 +137,7 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
     }, 1000) // 1 second debounce
 
     return () => clearTimeout(timeoutId)
-  }, [formData.url])
+  }, [formData.url]) // Remove metadata dependency to avoid infinite loops
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -141,16 +167,16 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
 
     try {
       await onAdd({
-        url: formData.url.trim(),
+        url: formData.url.trim(), // Always use the current form URL
         title: formData.title.trim(),
         description: formData.description.trim() || undefined,
         resource_type: formData.resource_type,
         tags: parsedTags, // Use validated parsed tags
         notes: formData.notes.trim() || undefined,
-        // Pass image data from metadata for tab cards
+        // Pass image data from metadata for tab cards (if metadata matches current URL)
         thumbnail_url: metadata?.thumbnail || undefined,
         favicon_url: metadata?.favicon || undefined,
-        // Save metadata for future reference
+        // Save metadata for future reference (if metadata matches current URL)
         metadata: metadata ? {
           confidence: metadata.confidence,
           domain: metadata.domain,
@@ -169,6 +195,7 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
       })
       setMetadata(null)
       setErrors({})
+      setTitleManuallyEdited(false)
       onClose()
     } catch (error) {
       console.error('Error adding tab:', error)
@@ -190,6 +217,7 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
       setMetadataError(null)
       setSimpleMode(true)
       setErrors({})
+      setTitleManuallyEdited(false)
     }
   }, [isOpen])
 
@@ -332,22 +360,29 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
             </div>
 
             {/* Form Fields - Show based on mode */}
-            <div className={`space-y-6 transition-all duration-300 ${simpleMode ? 'opacity-50' : 'opacity-100'}`}>
-              {/* Title */}
+            <div className={`space-y-6 transition-all duration-300`}>
+              {/* Title - Always editable */}
               <div>
                 <label htmlFor="title" className="block text-sm font-semibold text-stone-700 mb-2">
-                  Title {simpleMode && metadata ? '' : '*'}
+                  Title *
+                  {simpleMode && metadata && (
+                    <span className="ml-2 text-xs text-orange-600 font-normal">
+                      (auto-detected, editable)
+                    </span>
+                  )}
                 </label>
                 <input
                   type="text"
                   id="title"
                   value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  onChange={(e) => {
+                    setFormData(prev => ({ ...prev, title: e.target.value }))
+                    setTitleManuallyEdited(true)
+                  }}
                   placeholder={metadata?.title || "Give this tab a descriptive title"}
-                  disabled={simpleMode && !!metadata}
                   className={`w-full px-4 py-3 border rounded-2xl focus:ring-2 focus:ring-orange-200 focus:border-orange-300 bg-white transition-all text-stone-700 placeholder-stone-400 text-lg ${
                     errors.title ? 'border-red-300' : 'border-stone-200'
-                  } ${simpleMode && metadata ? 'bg-stone-50 cursor-not-allowed' : ''}`}
+                  }`}
                   maxLength={100}
                 />
                 {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
@@ -355,7 +390,7 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
 
               {/* Show additional fields only in detailed mode */}
               {!simpleMode && (
-                <>
+                <div className="space-y-6">
                   {/* Quick Setup Row */}
                   <div className="grid grid-cols-2 gap-4">
                     {/* Description */}
@@ -472,7 +507,7 @@ export default function AddTabModal({ isOpen, onClose, onAdd, isLoading }: AddTa
                     />
                     <p className="mt-1 text-sm text-stone-500">Only you can see these notes</p>
                   </div>
-                </>
+                </div>
               )}
             </div>
 

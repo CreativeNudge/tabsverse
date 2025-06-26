@@ -161,7 +161,7 @@ function TabCard({ tab, personality, onTabClick, canEdit, onTabDelete }: {
     >
       {/* Thumbnail */}
       <div className="relative h-48 overflow-hidden rounded-t-2xl">
-        {tab.thumbnail_url ? (
+        {tab.thumbnail_url && !tab.thumbnail_url.startsWith('data:') ? (
           <Image
             src={tab.thumbnail_url}
             alt={tab.title}
@@ -173,7 +173,7 @@ function TabCard({ tab, personality, onTabClick, canEdit, onTabDelete }: {
             {/* Enhanced fallback with favicon + domain */}
             <div className="flex flex-col items-center gap-3">
               {/* Always try to use favicon first, only fallback to icon if truly broken */}
-              {tab.favicon_url && !isFaviconActuallyBroken(tab.favicon_url) ? (
+              {tab.favicon_url && !isFaviconActuallyBroken(tab.favicon_url) && !tab.favicon_url.startsWith('data:') ? (
                 <div className="w-12 h-12 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-lg">
                   <Image
                     src={tab.favicon_url}
@@ -226,7 +226,7 @@ function TabCard({ tab, personality, onTabClick, canEdit, onTabDelete }: {
         {/* Domain and favicon - keep original favicon unless truly broken */}
         <div className="flex items-center gap-2 mb-2">
           {/* Conservative favicon display - keep working favicons */}
-          {tab.favicon_url && !isFaviconActuallyBroken(tab.favicon_url) ? (
+          {tab.favicon_url && !isFaviconActuallyBroken(tab.favicon_url) && !tab.favicon_url.startsWith('data:') ? (
             <Image
               src={tab.favicon_url}
               alt=""

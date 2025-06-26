@@ -13,31 +13,31 @@ interface MetadataResponse {
 // Social platforms that block automated access
 const BLOCKED_SOCIAL_PLATFORMS: Record<string, {
   name: string
-  placeholder: string
+  placeholder: string | null // Use null to indicate no thumbnail image
   color: string
   icon?: string // Built-in icon for known platforms
 }> = {
   'instagram.com': {
     name: 'Instagram',
-    placeholder: '/images/social-placeholders/instagram-placeholder.jpg',
+    placeholder: null, // No thumbnail image, will show fallback
     color: '#E4405F',
     icon: '📸' // Instagram camera emoji or we can use a proper icon
   },
   'facebook.com': {
     name: 'Facebook', 
-    placeholder: '/images/social-placeholders/facebook-placeholder.jpg',
+    placeholder: null, // No thumbnail image, will show fallback
     color: '#1877F2',
     icon: '👥' // Facebook people emoji
   },
   'twitter.com': {
     name: 'Twitter',
-    placeholder: '/images/social-placeholders/twitter-placeholder.jpg', 
+    placeholder: null, // No thumbnail image, will show fallback 
     color: '#000000',
     icon: '🐦' // Twitter bird
   },
   'x.com': {
     name: 'X',
-    placeholder: '/images/social-placeholders/x-placeholder.jpg',
+    placeholder: null, // No thumbnail image, will show fallback
     color: '#000000',
     icon: '✕' // X symbol
   }
@@ -193,13 +193,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<MetadataR
 
 function extractTitle(html: string): string {
   // Try og:title first
-  const ogTitle = html.match(/<meta\s+property=["\']og:title["\']\s+content=["\']([^"\']*)["\'][^>]*>/i)
+  const ogTitle = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']*)["'][^>]*>/i)
   if (ogTitle && ogTitle[1]) {
     return cleanText(ogTitle[1])
   }
   
   // Try twitter:title
-  const twitterTitle = html.match(/<meta\s+name=["\']twitter:title["\']\s+content=["\']([^"\']*)["\'][^>]*>/i)
+  const twitterTitle = html.match(/<meta\s+name=["']twitter:title["']\s+content=["']([^"']*)["'][^>]*>/i)
   if (twitterTitle && twitterTitle[1]) {
     return cleanText(twitterTitle[1])
   }
@@ -215,19 +215,19 @@ function extractTitle(html: string): string {
 
 function extractDescription(html: string): string {
   // Try og:description first
-  const ogDesc = html.match(/<meta\s+property=["\']og:description["\']\s+content=["\']([^"\']*)["\'][^>]*>/i)
+  const ogDesc = html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']*)["'][^>]*>/i)
   if (ogDesc && ogDesc[1]) {
     return cleanText(ogDesc[1])
   }
   
   // Try twitter:description
-  const twitterDesc = html.match(/<meta\s+name=["\']twitter:description["\']\s+content=["\']([^"\']*)["\'][^>]*>/i)
+  const twitterDesc = html.match(/<meta\s+name=["']twitter:description["']\s+content=["']([^"']*)["'][^>]*>/i)
   if (twitterDesc && twitterDesc[1]) {
     return cleanText(twitterDesc[1])
   }
   
   // Try meta description
-  const metaDesc = html.match(/<meta\s+name=["\']description["\']\s+content=["\']([^"\']*)["\'][^>]*>/i)
+  const metaDesc = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']*)["'][^>]*>/i)
   if (metaDesc && metaDesc[1]) {
     return cleanText(metaDesc[1])
   }
@@ -236,21 +236,21 @@ function extractDescription(html: string): string {
 }
 
 function extractImage(html: string, origin: string): string | null {
-  // Try og:image first
-  const ogImage = html.match(/<meta\s+property=["\']og:image["\']\s+content=["\']([^"\']*)["\'][^>]*>/i)
-  if (ogImage && ogImage[1]) {
+  // Try og:image first - filter out data URLs
+  const ogImage = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']*)["'][^>]*>/i)
+  if (ogImage && ogImage[1] && !ogImage[1].startsWith('data:')) {
     return resolveUrl(ogImage[1], origin)
   }
   
-  // Try twitter:image
-  const twitterImage = html.match(/<meta\s+name=["\']twitter:image["\']\s+content=["\']([^"\']*)["\'][^>]*>/i)
-  if (twitterImage && twitterImage[1]) {
+  // Try twitter:image - filter out data URLs
+  const twitterImage = html.match(/<meta\s+name=["']twitter:image["']\s+content=["']([^"']*)["'][^>]*>/i)
+  if (twitterImage && twitterImage[1] && !twitterImage[1].startsWith('data:')) {
     return resolveUrl(twitterImage[1], origin)
   }
   
-  // Try to find first img tag as fallback
-  const firstImg = html.match(/<img[^>]+src=["\']([^"\']+)["\'][^>]*>/i)
-  if (firstImg && firstImg[1]) {
+  // Try to find first img tag as fallback - filter out data URLs
+  const firstImg = html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i)
+  if (firstImg && firstImg[1] && !firstImg[1].startsWith('data:')) {
     const imgSrc = resolveUrl(firstImg[1], origin)
     // Only use if it looks like a substantial image (not icons/logos)
     if (imgSrc && !imgSrc.includes('icon') && !imgSrc.includes('logo')) {
@@ -262,9 +262,9 @@ function extractImage(html: string, origin: string): string | null {
 }
 
 function extractFavicon(html: string, origin: string): string {
-  // Try to find favicon link
-  const faviconLink = html.match(/<link[^>]+rel=["\'][^"\']*icon[^"\']*["\']\s+href=["\']([^"\']*)["\'][^>]*>/i)
-  if (faviconLink && faviconLink[1]) {
+  // Try to find favicon link - filter out data URLs
+  const faviconLink = html.match(/<link[^>]+rel=["'][^"']*icon[^"']*["']\s+href=["']([^"']*)["'][^>]*>/i)
+  if (faviconLink && faviconLink[1] && !faviconLink[1].startsWith('data:')) {
     return resolveUrl(faviconLink[1], origin)
   }
   
@@ -274,6 +274,11 @@ function extractFavicon(html: string, origin: string): string {
 
 function resolveUrl(url: string, origin: string): string {
   try {
+    // Filter out data URLs immediately
+    if (url.startsWith('data:')) {
+      return ''
+    }
+    
     // If it's already absolute, return as-is
     if (url.startsWith('http')) {
       return url
